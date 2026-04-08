@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <RootNamespace>vCamService.VCam</RootNamespace>
+    <AssemblyName>vCamService.VCam</AssemblyName>
+    <EnableComHosting>true</EnableComHosting>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\vCamService.Core\vCamService.Core.csproj" />
+  </ItemGroup>
+</Project>

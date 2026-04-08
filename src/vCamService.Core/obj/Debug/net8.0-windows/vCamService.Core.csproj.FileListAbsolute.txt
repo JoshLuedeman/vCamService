@@ -1,0 +1,11 @@
+/Users/josh/git/vCamService/src/vCamService.Core/bin/Debug/net8.0-windows/vCamService.Core.deps.json
+/Users/josh/git/vCamService/src/vCamService.Core/bin/Debug/net8.0-windows/vCamService.Core.dll
+/Users/josh/git/vCamService/src/vCamService.Core/bin/Debug/net8.0-windows/vCamService.Core.pdb
+/Users/josh/git/vCamService/src/vCamService.Core/obj/Debug/net8.0-windows/vCamService.Core.GeneratedMSBuildEditorConfig.editorconfig
+/Users/josh/git/vCamService/src/vCamService.Core/obj/Debug/net8.0-windows/vCamService.Core.AssemblyInfoInputs.cache
+/Users/josh/git/vCamService/src/vCamService.Core/obj/Debug/net8.0-windows/vCamService.Core.AssemblyInfo.cs
+/Users/josh/git/vCamService/src/vCamService.Core/obj/Debug/net8.0-windows/vCamService.Core.csproj.CoreCompileInputs.cache
+/Users/josh/git/vCamService/src/vCamService.Core/obj/Debug/net8.0-windows/vCamService.Core.dll
+/Users/josh/git/vCamService/src/vCamService.Core/obj/Debug/net8.0-windows/refint/vCamService.Core.dll
+/Users/josh/git/vCamService/src/vCamService.Core/obj/Debug/net8.0-windows/vCamService.Core.pdb
+/Users/josh/git/vCamService/src/vCamService.Core/obj/Debug/net8.0-windows/ref/vCamService.Core.dll

@@ -1,0 +1,1 @@
+/Users/josh/git/vCamService/src/vCamService.VCam/obj/Debug/net8.0-windows/vCamService.VCam.csproj.AssemblyReference.cache

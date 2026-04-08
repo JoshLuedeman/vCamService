@@ -1,0 +1,17 @@
+<UserControl x:Class="vCamService.App.Views.PreviewControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid Background="#1E1E1E">
+        <Image x:Name="FrameImage"
+               Stretch="Uniform"
+               Visibility="Collapsed"
+               RenderOptions.BitmapScalingMode="NearestNeighbor"/>
+        <TextBlock x:Name="NoStreamText"
+                   Text="No Stream"
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Center"
+                   Foreground="#808080"
+                   FontSize="18"
+                   FontFamily="Segoe UI"/>
+    </Grid>
+</UserControl>

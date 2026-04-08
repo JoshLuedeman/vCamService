@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "dgSpecHash": "shcxLcySXFw=",
+  "success": true,
+  "projectFilePath": "/Users/josh/git/vCamService/src/vCamService.VCam/vCamService.VCam.csproj",
+  "expectedPackageFiles": [
+    "/Users/josh/.nuget/packages/microsoft.netcore.app.ref/8.0.19/microsoft.netcore.app.ref.8.0.19.nupkg.sha512",
+    "/Users/josh/.nuget/packages/microsoft.windowsdesktop.app.ref/8.0.19/microsoft.windowsdesktop.app.ref.8.0.19.nupkg.sha512",
+    "/Users/josh/.nuget/packages/microsoft.aspnetcore.app.ref/8.0.19/microsoft.aspnetcore.app.ref.8.0.19.nupkg.sha512",
+    "/Users/josh/.nuget/packages/microsoft.netcore.app.host.osx-arm64/8.0.19/microsoft.netcore.app.host.osx-arm64.8.0.19.nupkg.sha512"
+  ],
+  "logs": []
+}
