@@ -65,7 +65,7 @@ public class FrameBufferTests
     }
 
     [Fact]
-    public void ThreadSafety_ConcurrentPutAndGet()
+    public async Task ThreadSafety_ConcurrentPutAndGet()
     {
         var buf = new FrameBuffer();
         var exceptions = new System.Collections.Concurrent.ConcurrentBag<Exception>();
@@ -90,7 +90,7 @@ public class FrameBufferTests
             catch (Exception ex) { exceptions.Add(ex); }
         }));
 
-        Task.WaitAll(writers.Concat(readers).ToArray());
+        await Task.WhenAll(writers.Concat(readers));
         Assert.Empty(exceptions);
     }
 }

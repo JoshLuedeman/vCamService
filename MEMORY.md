@@ -12,31 +12,34 @@ Do not remove entries unless they are explicitly obsolete.
 
 ## Patterns That Work
 
-- **Agent-model delegation:** Router (Sonnet) reads task → selects Custom Agent from `.github/agents/` → spawns sub-agent with correct model tier via `task` tool `model` parameter. Works well.
-- **httptest.NewServer** for mocking GitHub tarball endpoint in installer tests — lets unit tests cover install/update without network calls.
+- **Callback injection in App layer:** ViewModels receive `Func<>` / `Action<>` callbacks instead of direct service references — keeps MVVM layer decoupled from `AppOrchestrator`. See `App.xaml.cs` lines 86-100.
+- **Testable subclass for ConfigService:** Protected constructor accepts custom config directory, enabling unit tests with temp folders. See `ConfigServiceTests.cs`.
+- **Atomic config writes:** `ConfigService.Save()` writes to `.tmp` then moves — prevents corruption on crash.
+- **BGRA throughout the frame pipeline:** FFmpeg outputs BGRA, `FrameBuffer` stores BGRA, Media Foundation consumes BGRA — no format conversion needed anywhere.
 
 ## Patterns to Avoid
 
-- **gh issue create --milestone <number>** does NOT work; must use `gh api repos/.../issues` with `-F milestone=<number>`.
-- **Unauthenticated tarball fetch** fails for private repos — always set `Authorization: Bearer $GH_TOKEN` header in HTTP requests to GitHub API.
+- **Don't instantiate `StreamReader` directly in orchestrator** — currently hardcoded (`new StreamReader()` in `AppOrchestrator`). Use a factory or DI registration when refactoring.
+- **Don't assume frame dimensions match** — VCam layer has hardcoded 1280×720; no validation that `FrameBuffer` frames match. A mismatch could cause buffer overflows.
 
 ## Key Decisions
 
 Record important architectural and process decisions with rationale. Link to ADRs when
 they exist.
 
-- **2025-07-18:** ADR-004 — `teamwork validate` command. Exits 0/1/2, supports `--json`/`--quiet`, validates config+state+handoffs+memory in one pass. See `docs/decisions/004-validate-command-design.md`.
-- **2025-07-18:** ADR-005 — `teamwork install` and `teamwork update` commands. Tarball fetch (needs GH_TOKEN for private repos), manifest-based conflict detection (SHA-256), framework vs starter file classification. See `docs/decisions/005-install-update-design.md`.
-- **2026-03-03:** `gh-teamwork` CLI extension created at JoshLuedeman/gh-teamwork. Wraps `teamwork install`/`teamwork update` behind `gh teamwork init`/`gh teamwork update`. Falls back to Docker if binary not found.
-- **2026-03-03:** GitHub milestone numbering: #1=Phase 2 Orchestration App (closed), #2=Phase 1 install/update (closed), #3=Phase 2 gh extension (closed), #4=Phase 3 GitHub App, #5=Phase 4 MCP Integration, #6=Backlog, #7=Phase 2.5 CLI Enhancements.
-- **2026-03-05:** Restructured to Copilot-native file system. Roles moved from `agents/roles/` to `.github/agents/*.agent.md` (Custom Agents — selectable from Copilot dropdown). Workflows moved from `agents/workflows/` to `.github/skills/*/SKILL.md` (Skills — invocable via `/skill-name`). Added `.github/instructions/` for path-specific auto-loaded guidelines. Deleted `CLAUDE.md` and `.cursorrules`. Added 3 new agents: lint-agent, api-agent, dba-agent (15 total). Agent files use `<!-- CUSTOMIZE -->` placeholders for project-specific details; `/setup-teamwork` skill fills them in. `teamwork update` now cleans up deprecated files automatically.
-- **2026-03-03:** Phase 2 milestone closed. All 4 planning issues (#1-#4) resolved. Context sharing fully addressed by handoff system. Memory, metrics mostly addressed; follow-up tasks in Phase 2.5 (#66-#78). Multi-repo: hub-spoke design planned with 7 sub-tasks.
+- **2026-04-08:** Three-layer architecture — `Core` (protocol-agnostic stream decoding, config, reconnection), `VCam` (Windows Media Foundation COM interop), `App` (WPF MVVM shell). Core has no UI or Windows-specific APIs.
+- **2026-04-08:** FFmpeg as external subprocess — chosen over in-process libraries for reliability, hardware decode support, and broad codec coverage. Must be on `PATH`; checked at startup via `FfmpegChecker`.
+- **2026-04-08:** `MFCreateVirtualCamera` (Win11 22H2+) for user-mode virtual camera — no kernel driver, no admin rights, per-user HKCU registration, session lifetime (auto-removes on exit).
+- **2026-04-08:** Single-frame overwrite `FrameBuffer` (not a queue) — prioritizes low latency over frame completeness. Slow consumers lose frames; no backpressure.
+- **2026-04-08:** `ConfigVersion` field in `AppConfig` reserved for future schema migrations but no migration logic implemented yet.
 
 ## Common Mistakes
 
 Things agents frequently get wrong. Check this section before starting work.
 
-- Do not use `gh issue create --milestone` — it silently ignores the milestone. Use `gh api` instead.
+- **Windows 11 22H2+ is a hard requirement.** `MFCreateVirtualCamera` does not exist on Windows 10 or earlier Win11 builds. VCam COM tests cannot run in CI without this OS version.
+- **FFmpeg must be installed separately.** It is not bundled — the app checks for it at startup and shows instructions if missing.
+- **VCam tests skip actual COM/MF calls.** The 7 VCam tests validate state management only; they do not create a real virtual camera device.
 
 ## Reviewer Feedback
 
