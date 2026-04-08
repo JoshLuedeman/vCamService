@@ -7,6 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>vCamService.App</RootNamespace>
     <AssemblyName>vCamService.App</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\vCamService.Core\vCamService.Core.csproj" />
@@ -21,4 +22,13 @@
     <PackageReference Include="Serilog.Sinks.File" Version="6.*" />
     <PackageReference Include="H.NotifyIcon.Wpf" Version="2.1.0" />
   </ItemGroup>
+
+  <!-- COM hosting: comhost.dll needs a runtimeconfig.json next to it -->
+  <Target Name="CopyVCamRuntimeConfig" AfterTargets="Publish">
+    <Copy
+      SourceFiles="$(PublishDir)$(AssemblyName).runtimeconfig.json"
+      DestinationFiles="$(PublishDir)vCamService.VCam.runtimeconfig.json"
+      SkipUnchangedFiles="true"
+      Condition="Exists('$(PublishDir)$(AssemblyName).runtimeconfig.json')" />
+  </Target>
 </Project>

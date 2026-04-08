@@ -27,7 +27,16 @@ public class AppOrchestrator : IDisposable
     public async Task StartAsync()
     {
         _logger.LogInformation("Starting AppOrchestrator, {StreamCount} streams configured", _appConfig.Streams.Count);
-        _vcam.Start(_appConfig.VCamWidth, _appConfig.VCamHeight, _appConfig.VCamFps);
+        try
+        {
+            _vcam.Start(_appConfig.VCamWidth, _appConfig.VCamHeight, _appConfig.VCamFps);
+            _logger.LogInformation("Virtual camera started successfully");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Virtual camera failed to start");
+            throw;
+        }
         _cts = new CancellationTokenSource();
         _feederTask = FeedVirtualCameraAsync(_cts.Token);
 

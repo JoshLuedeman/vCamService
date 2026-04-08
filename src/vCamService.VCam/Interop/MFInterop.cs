@@ -3,14 +3,14 @@ using System.Runtime.InteropServices;
 namespace vCamService.VCam.Interop;
 
 /// <summary>
-/// P/Invoke declarations for mf.dll (MFCreateVirtualCamera) and mfplat.dll
+/// P/Invoke declarations for mfsensorgroup.dll (MFCreateVirtualCamera) and mfplat.dll
 /// (MFStartup, MFShutdown, MFCreate* helpers).
 /// All functions return HRESULT; check &lt; 0 for failure.
 /// </summary>
 public static class MFInterop
 {
     // -----------------------------------------------------------------------
-    // mf.dll
+    // mfsensorgroup.dll
     // -----------------------------------------------------------------------
 
     /// <summary>
@@ -24,7 +24,7 @@ public static class MFInterop
     /// <param name="categories">GUID of the KS category (e.g., KSCATEGORY_VIDEO_CAMERA).</param>
     /// <param name="categoryCount">Number of entries in <paramref name="categories"/> (normally 1).</param>
     /// <param name="virtualCamera">Receives the IMFVirtualCamera interface.</param>
-    [DllImport("mf.dll")]
+    [DllImport("mfsensorgroup.dll")]
     public static extern int MFCreateVirtualCamera(
         int type,
         int lifetime,
@@ -34,6 +34,18 @@ public static class MFInterop
         [In] ref Guid categories,
         int categoryCount,
         [MarshalAs(UnmanagedType.Interface)] out IMFVirtualCamera virtualCamera);
+
+    /// <summary>Raw IntPtr overload for diagnostic/manual vtable calls.</summary>
+    [DllImport("mfsensorgroup.dll", EntryPoint = "MFCreateVirtualCamera")]
+    public static extern int MFCreateVirtualCameraRaw(
+        int type,
+        int lifetime,
+        int access,
+        [MarshalAs(UnmanagedType.LPWStr)] string friendlyName,
+        [MarshalAs(UnmanagedType.LPWStr)] string sourceId,
+        [In] ref Guid categories,
+        int categoryCount,
+        out IntPtr virtualCamera);
 
     // -----------------------------------------------------------------------
     // mfplat.dll

@@ -5,6 +5,8 @@
     <AssemblyName>vCamService.VCam</AssemblyName>
     <!-- comhost.dll generation is only supported by the Windows .NET SDK toolchain -->
     <EnableComHosting Condition="$([MSBuild]::IsOSPlatform('windows'))">true</EnableComHosting>
+    <!-- comhost.dll requires a runtimeconfig.json next to it to bootstrap the CLR -->
+    <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\vCamService.Core\vCamService.Core.csproj" />

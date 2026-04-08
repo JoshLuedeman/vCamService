@@ -1,4 +1,3 @@
-using System.Reflection;
 using System.Runtime.InteropServices;
 using Microsoft.Win32;
 using vCamService.Core.Services;
@@ -60,23 +59,34 @@ public sealed class VirtualCameraManager : IDisposable
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (IsRunning) return;
 
+        string diagLog = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "vCamService", "vcam-diag.log");
+        void Diag(string msg) => File.AppendAllText(diagLog, $"[{DateTime.Now:HH:mm:ss.fff}] {msg}\n");
+
+        Diag("Start() entered");
+
         // 1. Register the COM class so MF can CoCreateInstance it
         RegisterComClass();
+        Diag("COM class registered");
 
         // 2. Point the shared frame buffer at our instance
         VirtualCameraSource.SharedFrameBuffer = FrameBuffer;
 
         // 3. Initialise Media Foundation
         int hr = MFStartup(MF_VERSION, 0);
+        Diag($"MFStartup returned HR=0x{hr:X8}");
         ThrowIfFailed(hr, nameof(MFStartup));
         _mfInitialised = true;
 
-        // 4. Create the virtual camera
-        //    type=0 (SoftwareCameraSource), lifetime=1 (Session), access=0 (CurrentUser)
+        // 4. Create the virtual camera — get raw IntPtr to avoid CLR COM marshaling issues
         var category = KSCATEGORY_VIDEO_CAMERA;
         string clsidStr = $"{{{typeof(VirtualCameraSource).GUID.ToString().ToUpperInvariant()}}}";
+        string comhostPath = Path.Combine(AppContext.BaseDirectory, "vCamService.VCam.comhost.dll");
+        Diag($"CLSID={clsidStr}");
+        Diag($"comhost path={comhostPath}, exists={File.Exists(comhostPath)}");
 
-        hr = MFCreateVirtualCamera(
+        hr = MFCreateVirtualCameraRaw(
             type: 0,
             lifetime: 1,
             access: 0,
@@ -84,15 +94,40 @@ public sealed class VirtualCameraManager : IDisposable
             sourceId: clsidStr,
             categories: ref category,
             categoryCount: 1,
-            virtualCamera: out IMFVirtualCamera cam);
+            virtualCamera: out IntPtr camPtr);
+        Diag($"MFCreateVirtualCamera returned HR=0x{hr:X8}, ptr=0x{camPtr:X}");
         ThrowIfFailed(hr, nameof(MFCreateVirtualCamera));
-        _camera = cam;
 
-        // 5. Start — null causes MF to use CoCreateInstance on the registered sourceId
-        hr = _camera.Start(null);
+        // Read vtable pointer and check Start slot
+        IntPtr vtable = Marshal.ReadIntPtr(camPtr);
+        // IMFVirtualCamera vtable: 3 IUnknown + 30 IMFAttributes + [AddDeviceSourceInfo, AddProperty, AddRegistryEntry, Start]
+        // Start is at slot 36
+        int startSlot = 3 + 30 + 3; // = 36
+        IntPtr startFuncPtr = Marshal.ReadIntPtr(vtable, startSlot * IntPtr.Size);
+        Diag($"vtable=0x{vtable:X}, Start slot={startSlot}, Start func=0x{startFuncPtr:X}");
+
+        // Call Start(IMFVirtualCamera* this, IMFAsyncCallback* pCallback) via raw function pointer
+        // HRESULT (__stdcall*)(void* pThis, void* pCallback)
+        hr = RawStartCall(camPtr, startFuncPtr);
+        Diag($"Raw Start returned HR=0x{hr:X8}");
         ThrowIfFailed(hr, "IMFVirtualCamera.Start");
 
+        // Wrap the raw pointer in an RCW for later use (Stop, Remove)
+        _camera = (IMFVirtualCamera)Marshal.GetObjectForIUnknown(camPtr);
+        Marshal.Release(camPtr); // GetObjectForIUnknown AddRef'd it
+
         IsRunning = true;
+        Diag("Start() completed successfully");
+    }
+
+    // Delegate matching HRESULT Start(void* pThis, void* pCallback)
+    [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+    private delegate int StartFn(IntPtr pThis, IntPtr pCallback);
+
+    private static int RawStartCall(IntPtr camPtr, IntPtr funcPtr)
+    {
+        var fn = Marshal.GetDelegateForFunctionPointer<StartFn>(funcPtr);
+        return fn(camPtr, IntPtr.Zero);
     }
 
     /// <summary>Stops frame delivery and removes the virtual camera device.</summary>
@@ -143,24 +178,45 @@ public sealed class VirtualCameraManager : IDisposable
     // ------------------------------------------------------------------
 
     /// <summary>
-    /// Writes per-user COM registration entries under
-    /// <c>HKCU\Software\Classes\CLSID\{clsid}\InProcServer32</c>
-    /// so that MF can locate <c>vCamService.VCam.comhost.dll</c>.
+    /// Copies COM hosting files to a system-accessible directory and writes
+    /// machine-wide COM registration under HKLM so the Camera Frame Server
+    /// service (NT AUTHORITY\LocalService) can activate the media source.
+    /// Requires the application to run elevated (admin).
     /// </summary>
     private void RegisterComClass()
     {
         string clsid = typeof(VirtualCameraSource).GUID.ToString("B").ToUpperInvariant();
+        string baseDir = AppContext.BaseDirectory;
 
-        // The comhost.dll sits alongside the managed assembly.
-        string assemblyPath = Assembly.GetExecutingAssembly().Location;
-        string comhostPath = Path.ChangeExtension(assemblyPath, null) + ".comhost.dll";
+        // Frame Server (LocalService) can't access user-profile directories.
+        // Copy COM hosting files to ProgramData where all accounts can read.
+        string comDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+            "vCamService", "com");
+        Directory.CreateDirectory(comDir);
 
-        // HKCU\Software\Classes\CLSID\{guid}  (default) = friendly description
-        using RegistryKey clsidKey = Registry.CurrentUser.CreateSubKey(
+        string[] comFiles = [
+            "vCamService.VCam.comhost.dll",
+            "vCamService.VCam.dll",
+            "vCamService.VCam.runtimeconfig.json",
+            "vCamService.VCam.deps.json",
+            "vCamService.Core.dll",
+        ];
+        foreach (string file in comFiles)
+        {
+            string src = Path.Combine(baseDir, file);
+            if (File.Exists(src))
+                File.Copy(src, Path.Combine(comDir, file), overwrite: true);
+        }
+
+        string comhostPath = Path.Combine(comDir, "vCamService.VCam.comhost.dll");
+
+        // HKLM\Software\Classes\CLSID\{guid}
+        using RegistryKey clsidKey = Registry.LocalMachine.CreateSubKey(
             $@"Software\Classes\CLSID\{clsid}", writable: true);
         clsidKey.SetValue(null, "vCamService Camera Source");
 
-        // HKCU\Software\Classes\CLSID\{guid}\InProcServer32
+        // HKLM\Software\Classes\CLSID\{guid}\InProcServer32
         using RegistryKey inprocKey = clsidKey.CreateSubKey("InProcServer32");
         inprocKey.SetValue(null, comhostPath);
         inprocKey.SetValue("ThreadingModel", "Both");

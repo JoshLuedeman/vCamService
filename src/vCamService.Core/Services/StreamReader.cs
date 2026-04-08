@@ -178,11 +178,15 @@ public sealed class StreamReader : IStreamReader
                 return candidate;
         }
 
-        // Common install locations
-        string[] fallbacks = [
+        // Common install locations (includes winget default path)
+        var wingetFfmpeg = FindWingetFfmpeg();
+        var fallbacks = new List<string>
+        {
             @"C:\Program Files\ffmpeg\bin\ffmpeg.exe",
             @"C:\ffmpeg\bin\ffmpeg.exe"
-        ];
+        };
+        if (wingetFfmpeg != null)
+            fallbacks.Insert(0, wingetFfmpeg);
         foreach (var path in fallbacks)
         {
             if (File.Exists(path))
@@ -190,6 +194,26 @@ public sealed class StreamReader : IStreamReader
         }
 
         throw new FileNotFoundException("ffmpeg.exe not found. Install via: winget install ffmpeg");
+    }
+
+    /// <summary>
+    /// Searches the WinGet packages directory for an ffmpeg.exe installed via
+    /// <c>winget install ffmpeg</c> or <c>winget install Gyan.FFmpeg</c>.
+    /// </summary>
+    private static string? FindWingetFfmpeg()
+    {
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        var wingetPkgs = Path.Combine(localAppData, "Microsoft", "WinGet", "Packages");
+        if (!Directory.Exists(wingetPkgs)) return null;
+
+        try
+        {
+            foreach (var file in Directory.EnumerateFiles(wingetPkgs, "ffmpeg.exe", SearchOption.AllDirectories))
+                return file;
+        }
+        catch { /* Permission or access errors — skip */ }
+
+        return null;
     }
 
     private void SetStatus(StreamStatus status)

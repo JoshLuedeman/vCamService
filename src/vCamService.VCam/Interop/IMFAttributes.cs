@@ -4,13 +4,14 @@ namespace vCamService.VCam.Interop;
 
 /// <summary>
 /// COM import for IMFAttributes (GUID 2CD2D921-C447-44A7-A13C-4ADABFC247E3).
-/// Base interface for many MF objects. Only used to call into native MF objects.
+/// Method order must exactly match the native vtable from mfobjects.h.
 /// </summary>
 [ComImport]
 [Guid("2CD2D921-C447-44A7-A13C-4ADABFC247E3")]
 [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
 public interface IMFAttributes
 {
+    // --- Getters (slots 3–17) ---
     [PreserveSig] int GetItem(ref Guid guidKey, IntPtr pValue);
     [PreserveSig] int GetItemType(ref Guid guidKey, out int pType);
     [PreserveSig] int CompareItem(ref Guid guidKey, IntPtr value, [MarshalAs(UnmanagedType.Bool)] out bool pbResult);
@@ -26,12 +27,11 @@ public interface IMFAttributes
     [PreserveSig] int GetBlob(ref Guid guidKey, [MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 2)] byte[] pBuf, int cbBufSize, out int pcbBlobSize);
     [PreserveSig] int GetAllocatedBlob(ref Guid guidKey, out IntPtr ppBuf, out int pcbSize);
     [PreserveSig] int GetUnknown(ref Guid guidKey, ref Guid riid, [MarshalAs(UnmanagedType.Interface)] out object ppv);
+
+    // --- Mutators (slots 18–27) ---
     [PreserveSig] int SetItem(ref Guid guidKey, IntPtr value);
     [PreserveSig] int DeleteItem(ref Guid guidKey);
     [PreserveSig] int DeleteAllItems();
-    [PreserveSig] int GetCount(out int pcItems);
-    [PreserveSig] int GetItemByIndex(int unIndex, out Guid pguidKey, IntPtr pValue);
-    [PreserveSig] int CopyAllItems([MarshalAs(UnmanagedType.Interface)] IMFAttributes pDest);
     [PreserveSig] int SetUINT32(ref Guid guidKey, int unValue);
     [PreserveSig] int SetUINT64(ref Guid guidKey, long unValue);
     [PreserveSig] int SetDouble(ref Guid guidKey, double fValue);
@@ -39,4 +39,11 @@ public interface IMFAttributes
     [PreserveSig] int SetString(ref Guid guidKey, [MarshalAs(UnmanagedType.LPWStr)] string wszValue);
     [PreserveSig] int SetBlob(ref Guid guidKey, [MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 2)] byte[] pBuf, int cbBufSize);
     [PreserveSig] int SetUnknown(ref Guid guidKey, [MarshalAs(UnmanagedType.Interface)] object pUnknown);
+
+    // --- Lock / enumeration (slots 28–32) ---
+    [PreserveSig] int LockStore();
+    [PreserveSig] int UnlockStore();
+    [PreserveSig] int GetCount(out int pcItems);
+    [PreserveSig] int GetItemByIndex(int unIndex, out Guid pguidKey, IntPtr pValue);
+    [PreserveSig] int CopyAllItems([MarshalAs(UnmanagedType.Interface)] IMFAttributes pDest);
 }
