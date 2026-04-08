@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="WixToolset.Sdk/4.*">
+  <PropertyGroup>
+    <ProductVersion>1.0.0</ProductVersion>
+    <OutputName>vCamService-Setup</OutputName>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="WixToolset.UI.wixext" Version="4.*" />
+    <PackageReference Include="WixToolset.Util.wixext" Version="4.*" />
+  </ItemGroup>
+</Project>
