@@ -3,7 +3,8 @@
     <TargetFramework>net8.0-windows</TargetFramework>
     <RootNamespace>vCamService.VCam</RootNamespace>
     <AssemblyName>vCamService.VCam</AssemblyName>
-    <EnableComHosting>true</EnableComHosting>
+    <!-- comhost.dll generation is only supported by the Windows .NET SDK toolchain -->
+    <EnableComHosting Condition="$([MSBuild]::IsOSPlatform('windows'))">true</EnableComHosting>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\vCamService.Core\vCamService.Core.csproj" />
