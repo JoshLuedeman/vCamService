@@ -8,10 +8,6 @@
         Height="600" Width="900"
         MinHeight="400" MinWidth="640">
 
-    <Window.DataContext>
-        <vm:MainViewModel/>
-    </Window.DataContext>
-
     <Window.Resources>
         <conv:StatusToColorConverter x:Key="StatusColorConverter"/>
         <Style x:Key="StreamListItem" TargetType="ListViewItem">
@@ -85,7 +81,7 @@
                           ShowsPreview="True"/>
 
             <!-- ── Right panel: live preview ── -->
-            <views:PreviewControl Grid.Column="2"/>
+            <views:PreviewControl x:Name="Preview" Grid.Column="2"/>
         </Grid>
 
         <!-- ── Status bar ── -->
