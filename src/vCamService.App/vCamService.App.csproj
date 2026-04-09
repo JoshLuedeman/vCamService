@@ -1,34 +1,21 @@
 <Project Sdk="Microsoft.NET.Sdk">
+
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <RootNamespace>vCamService.App</RootNamespace>
-    <AssemblyName>vCamService.App</AssemblyName>
-    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Resources\camera.ico</ApplicationIcon>
   </PropertyGroup>
+
   <ItemGroup>
-    <ProjectReference Include="..\vCamService.Core\vCamService.Core.csproj" />
+    <Resource Include="Resources\camera.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\vCamService.VCam\vCamService.VCam.csproj" />
   </ItemGroup>
+
   <ItemGroup>
-    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
-    <PackageReference Include="Serilog" Version="4.*" />
-    <PackageReference Include="Serilog.Extensions.Hosting" Version="8.*" />
-    <PackageReference Include="Serilog.Sinks.Debug" Version="3.*" />
-    <PackageReference Include="Serilog.Sinks.File" Version="6.*" />
     <PackageReference Include="H.NotifyIcon.Wpf" Version="2.1.0" />
   </ItemGroup>
 
-  <!-- COM hosting: comhost.dll needs a runtimeconfig.json next to it -->
-  <Target Name="CopyVCamRuntimeConfig" AfterTargets="Publish">
-    <Copy
-      SourceFiles="$(PublishDir)$(AssemblyName).runtimeconfig.json"
-      DestinationFiles="$(PublishDir)vCamService.VCam.runtimeconfig.json"
-      SkipUnchangedFiles="true"
-      Condition="Exists('$(PublishDir)$(AssemblyName).runtimeconfig.json')" />
-  </Target>
 </Project>

@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+
+  <?define ProductName = "vCamService" ?>
+  <?define Manufacturer = "vCamService" ?>
+  <?define UpgradeCode = "AC22C84F-1E68-4B33-A5E3-CC3F8E345A18" ?>
+  <?define ComClsid = "{B5823E0D-4D72-4B3F-A9B8-C12F5E7D9A3E}" ?>
+
+  <Package
+    Name="$(ProductName)"
+    Manufacturer="$(Manufacturer)"
+    Version="!(bind.FileVersion.AppExe)"
+    UpgradeCode="$(UpgradeCode)"
+    Scope="perMachine"
+    InstallerVersion="500">
+
+    <MajorUpgrade
+      DowngradeErrorMessage="A newer version of $(ProductName) is already installed." />
+
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- ============================================================ -->
+    <!--  DIRECTORIES                                                  -->
+    <!-- ============================================================ -->
+    <StandardDirectory Id="ProgramFiles6432Folder">
+      <Directory Id="INSTALLFOLDER" Name="vCamService">
+        <Directory Id="ToolsFolder" Name="tools" />
+        <Directory Id="ComFolder" Name="com" />
+      </Directory>
+    </StandardDirectory>
+
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="ShortcutFolder" Name="vCamService" />
+    </StandardDirectory>
+
+    <!-- ============================================================ -->
+    <!--  APP COMPONENT — main executable + dependencies               -->
+    <!-- ============================================================ -->
+    <ComponentGroup Id="AppComponents" Directory="INSTALLFOLDER">
+      <Component Id="AppExeComponent" Guid="0AE2BBC7-4F36-40DC-A9D2-9636E4165951">
+        <File Id="AppExe" Source="$(var.PublishDir)\vCamService.App.exe" KeyPath="yes" />
+        <File Id="AppDepsJson" Source="$(var.PublishDir)\vCamService.App.deps.json" />
+        <File Id="AppRuntimeConfig" Source="$(var.PublishDir)\vCamService.App.runtimeconfig.json" />
+      </Component>
+
+      <!-- Managed DLLs from publish output -->
+      <Component Id="AppDlls" Guid="F85C2FE4-000E-4E86-A695-5C2ACB49D385">
+        <File Source="$(var.PublishDir)\vCamService.Core.dll" />
+        <File Source="$(var.PublishDir)\vCamService.VCam.dll" />
+        <File Source="$(var.PublishDir)\DirectNCore.dll" />
+        <File Source="$(var.PublishDir)\Microsoft.Windows.SDK.NET.dll" />
+        <File Source="$(var.PublishDir)\WinRT.Runtime.dll" />
+        <File Source="$(var.PublishDir)\H.NotifyIcon.dll" />
+        <File Source="$(var.PublishDir)\H.NotifyIcon.Wpf.dll" />
+      </Component>
+    </ComponentGroup>
+
+    <!-- ============================================================ -->
+    <!--  COM COMPONENT — comhost + registration in ProgramData        -->
+    <!-- ============================================================ -->
+    <ComponentGroup Id="ComComponents" Directory="ComFolder">
+      <Component Id="ComHostComponent" Guid="*">
+        <File Id="ComHostDll" Source="$(var.PublishDir)\vCamService.VCam.comhost.dll" KeyPath="yes" />
+        <File Source="$(var.PublishDir)\vCamService.VCam.dll" CompanionFile="ComHostDll" />
+        <File Source="$(var.PublishDir)\vCamService.VCam.runtimeconfig.json" CompanionFile="ComHostDll" />
+        <File Source="$(var.PublishDir)\vCamService.VCam.deps.json" CompanionFile="ComHostDll" />
+        <File Source="$(var.PublishDir)\vCamService.Core.dll" CompanionFile="ComHostDll" />
+        <File Source="$(var.PublishDir)\DirectNCore.dll" CompanionFile="ComHostDll" />
+        <File Source="$(var.PublishDir)\Microsoft.Windows.SDK.NET.dll" CompanionFile="ComHostDll" />
+        <File Source="$(var.PublishDir)\WinRT.Runtime.dll" CompanionFile="ComHostDll" />
+
+        <!-- COM class registration -->
+        <RegistryValue Root="HKLM"
+                       Key="Software\Classes\CLSID\$(ComClsid)"
+                       Value="vCamService Virtual Camera Source"
+                       Type="string" />
+        <RegistryValue Root="HKLM"
+                       Key="Software\Classes\CLSID\$(ComClsid)\InProcServer32"
+                       Value="[ComFolder]vCamService.VCam.comhost.dll"
+                       Type="string" />
+        <RegistryValue Root="HKLM"
+                       Key="Software\Classes\CLSID\$(ComClsid)\InProcServer32"
+                       Name="ThreadingModel"
+                       Value="Both"
+                       Type="string" />
+      </Component>
+    </ComponentGroup>
+
+    <!-- ============================================================ -->
+    <!--  FFMPEG TOOL                                                  -->
+    <!-- ============================================================ -->
+    <ComponentGroup Id="ToolsComponents" Directory="ToolsFolder">
+      <Component Id="FfmpegComponent" Guid="*">
+        <File Id="FfmpegExe" Source="$(var.FfmpegPath)\ffmpeg.exe" KeyPath="yes" />
+        <File Id="FfprobeExe" Source="$(var.FfmpegPath)\ffprobe.exe" />
+
+        <!-- Add tools folder to system PATH -->
+        <Environment Id="PathEnv" Name="PATH" Value="[ToolsFolder]"
+                     Part="last" Action="set" System="yes" Permanent="no" />
+      </Component>
+    </ComponentGroup>
+
+    <!-- ============================================================ -->
+    <!--  SHORTCUTS                                                    -->
+    <!-- ============================================================ -->
+    <ComponentGroup Id="ShortcutComponents" Directory="ShortcutFolder">
+      <Component Id="StartMenuShortcut" Guid="*">
+        <Shortcut Id="AppShortcut"
+                  Name="vCamService"
+                  Target="[INSTALLFOLDER]vCamService.App.exe"
+                  WorkingDirectory="INSTALLFOLDER"
+                  Icon="CameraIcon" />
+        <RemoveFolder Id="RemoveShortcutFolder" On="uninstall" />
+        <RegistryValue Root="HKCU" Key="Software\vCamService" Name="installed" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <!-- ============================================================ -->
+    <!--  CUSTOM ACTIONS — restart Frame Server                        -->
+    <!-- ============================================================ -->
+    <CustomAction Id="StopFrameServer"
+                  Directory="INSTALLFOLDER"
+                  ExeCommand="[SystemFolder]net.exe stop FrameServer"
+                  Execute="deferred"
+                  Impersonate="no"
+                  Return="ignore" />
+
+    <CustomAction Id="StartFrameServer"
+                  Directory="INSTALLFOLDER"
+                  ExeCommand="[SystemFolder]net.exe start FrameServer"
+                  Execute="deferred"
+                  Impersonate="no"
+                  Return="ignore" />
+
+    <InstallExecuteSequence>
+      <Custom Action="StopFrameServer" Before="InstallFiles" Condition="Installed" />
+      <Custom Action="StartFrameServer" After="InstallFiles" />
+    </InstallExecuteSequence>
+
+    <!-- ============================================================ -->
+    <!--  FEATURE TREE                                                 -->
+    <!-- ============================================================ -->
+    <Feature Id="MainFeature" Title="vCamService" Level="1">
+      <ComponentGroupRef Id="AppComponents" />
+      <ComponentGroupRef Id="ComComponents" />
+      <ComponentGroupRef Id="ToolsComponents" />
+      <ComponentGroupRef Id="ShortcutComponents" />
+    </Feature>
+
+    <Icon Id="CameraIcon" SourceFile="$(var.PublishDir)\..\..\..\..\..\Resources\camera.ico" />
+
+  </Package>
+</Wix>

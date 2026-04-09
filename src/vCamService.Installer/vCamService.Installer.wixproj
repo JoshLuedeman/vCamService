@@ -1,12 +1,6 @@
-<?xml version="1.0" encoding="utf-8"?>
-<Project Sdk="WixToolset.Sdk/4.0.5">
+<Project Sdk="WixToolset.Sdk/7.0.0">
   <PropertyGroup>
-    <ProductVersion>1.0.0</ProductVersion>
-    <OutputName>vCamService-Setup</OutputName>
-    <DefineConstants>ProductVersion=$(ProductVersion);PublishDir=$(PublishDir)</DefineConstants>
+    <OutputType>Package</OutputType>
+    <InstallerPlatform>x64</InstallerPlatform>
   </PropertyGroup>
-  <ItemGroup>
-    <PackageReference Include="WixToolset.UI.wixext" Version="4.0.5" />
-    <PackageReference Include="WixToolset.Util.wixext" Version="4.0.5" />
-  </ItemGroup>
 </Project>

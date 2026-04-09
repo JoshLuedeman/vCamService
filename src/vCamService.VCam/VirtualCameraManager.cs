@@ -1,169 +1,140 @@
 using System.Runtime.InteropServices;
+using DirectN;
 using Microsoft.Win32;
 using vCamService.Core.Services;
-using vCamService.VCam.Interop;
-using static vCamService.VCam.Interop.MFGuids;
-using static vCamService.VCam.Interop.MFInterop;
+using vCamService.VCam.Utilities;
 
 namespace vCamService.VCam;
 
 /// <summary>
-/// Public API for the virtual camera device.
-///
-/// Typical usage:
-/// <code>
-///   using var mgr = new VirtualCameraManager();
-///   mgr.Start();
-///   // ...
-///   mgr.SendFrame(bgraBytes, 1280, 720);
-///   // ...
-///   mgr.Stop();
-/// </code>
+/// Public API for creating and managing the virtual camera device.
+/// Handles COM registration, MF lifecycle, camera start/stop, and stream reader.
 /// </summary>
 public sealed class VirtualCameraManager : IDisposable
 {
-    // ------------------------------------------------------------------
-    // Public surface
-    // ------------------------------------------------------------------
-
-    /// <summary>Friendly name shown in Windows camera pickers.</summary>
-    public string DeviceName => "vCamService Camera";
-
-    /// <summary>True once <see cref="Start"/> completes successfully.</summary>
+    public string DeviceName => "vCamService";
     public bool IsRunning { get; private set; }
 
-    /// <summary>Write frames here via <see cref="SendFrame"/>.</summary>
-    public FrameBuffer FrameBuffer { get; } = new();
-
-    // ------------------------------------------------------------------
-    // Private state
-    // ------------------------------------------------------------------
-
-    private IMFVirtualCamera? _camera;
+    private IComObject<IMFVirtualCamera>? _camera;
+    private VideoStreamReader? _streamReader;
     private bool _mfInitialised;
     private bool _disposed;
 
-    // ------------------------------------------------------------------
-    // Lifecycle
-    // ------------------------------------------------------------------
+    public event Action<string>? OnLog;
+    public event Action<string>? OnError;
 
     /// <summary>
-    /// Registers the COM class, initialises Media Foundation, creates the virtual
-    /// camera device, and starts delivering frames.
+    /// Checks whether the COM class is registered and all required files are present.
     /// </summary>
-    /// <param name="width">Frame width in pixels (default 1280).</param>
-    /// <param name="height">Frame height in pixels (default 720).</param>
-    /// <param name="fps">Target frame rate (default 30; advisory only for session cameras).</param>
-    public void Start(int width = 1280, int height = 720, int fps = 30)
+    public static bool IsComRegistered()
+    {
+        string clsid = typeof(Activator).GUID.ToString("B").ToUpperInvariant();
+        using var hklm = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64);
+        using var key = hklm.OpenSubKey($@"Software\Classes\CLSID\{clsid}\InProcServer32");
+        if (key?.GetValue(null) is not string comhostPath) return false;
+        if (!File.Exists(comhostPath)) return false;
+
+        // Verify essential companion files alongside comhost
+        string comDir = Path.GetDirectoryName(comhostPath)!;
+        string[] requiredFiles = ["vCamService.VCam.dll", "vCamService.VCam.runtimeconfig.json",
+                                  "vCamService.VCam.deps.json", "vCamService.Core.dll"];
+        return requiredFiles.All(f => File.Exists(Path.Combine(comDir, f)));
+    }
+
+    /// <summary>
+    /// Start the virtual camera. If streamUrl is provided, starts ffmpeg to feed live frames.
+    /// </summary>
+    public void Start(string? streamUrl = null)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (IsRunning) return;
 
-        string diagLog = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "vCamService", "vcam-diag.log");
-        void Diag(string msg) => File.AppendAllText(diagLog, $"[{DateTime.Now:HH:mm:ss.fff}] {msg}\n");
+        EventProvider.LogInfo("Start() entered");
 
-        Diag("Start() entered");
-
-        // 1. Register the COM class so MF can CoCreateInstance it
-        RegisterComClass();
-        Diag("COM class registered");
-
-        // 2. Point the shared frame buffer at our instance
-        VirtualCameraSource.SharedFrameBuffer = FrameBuffer;
-
-        // 3. Initialise Media Foundation
-        int hr = MFStartup(MF_VERSION, 0);
-        Diag($"MFStartup returned HR=0x{hr:X8}");
-        ThrowIfFailed(hr, nameof(MFStartup));
-        _mfInitialised = true;
-
-        // 4. Create the virtual camera — get raw IntPtr to avoid CLR COM marshaling issues
-        var category = KSCATEGORY_VIDEO_CAMERA;
-        string clsidStr = $"{{{typeof(VirtualCameraSource).GUID.ToString().ToUpperInvariant()}}}";
-        string comhostPath = Path.Combine(AppContext.BaseDirectory, "vCamService.VCam.comhost.dll");
-        Diag($"CLSID={clsidStr}");
-        Diag($"comhost path={comhostPath}, exists={File.Exists(comhostPath)}");
-
-        hr = MFCreateVirtualCameraRaw(
-            type: 0,
-            lifetime: 1,
-            access: 0,
-            friendlyName: DeviceName,
-            sourceId: clsidStr,
-            categories: ref category,
-            categoryCount: 1,
-            virtualCamera: out IntPtr camPtr);
-        Diag($"MFCreateVirtualCamera returned HR=0x{hr:X8}, ptr=0x{camPtr:X}");
-        ThrowIfFailed(hr, nameof(MFCreateVirtualCamera));
-
-        // Read vtable pointer and check Start slot
-        IntPtr vtable = Marshal.ReadIntPtr(camPtr);
-        // IMFVirtualCamera vtable: 3 IUnknown + 30 IMFAttributes + [AddDeviceSourceInfo, AddProperty, AddRegistryEntry, Start]
-        // Start is at slot 36
-        int startSlot = 3 + 30 + 3; // = 36
-        IntPtr startFuncPtr = Marshal.ReadIntPtr(vtable, startSlot * IntPtr.Size);
-        Diag($"vtable=0x{vtable:X}, Start slot={startSlot}, Start func=0x{startFuncPtr:X}");
-
-        // Call Start(IMFVirtualCamera* this, IMFAsyncCallback* pCallback) via raw function pointer
-        // HRESULT (__stdcall*)(void* pThis, void* pCallback)
-        hr = RawStartCall(camPtr, startFuncPtr);
-        Diag($"Raw Start returned HR=0x{hr:X8}");
-        ThrowIfFailed(hr, "IMFVirtualCamera.Start");
-
-        // Wrap the raw pointer in an RCW for later use (Stop, Remove)
-        _camera = (IMFVirtualCamera)Marshal.GetObjectForIUnknown(camPtr);
-        Marshal.Release(camPtr); // GetObjectForIUnknown AddRef'd it
-
-        IsRunning = true;
-        Diag("Start() completed successfully");
-    }
-
-    // Delegate matching HRESULT Start(void* pThis, void* pCallback)
-    [UnmanagedFunctionPointer(CallingConvention.StdCall)]
-    private delegate int StartFn(IntPtr pThis, IntPtr pCallback);
-
-    private static int RawStartCall(IntPtr camPtr, IntPtr funcPtr)
-    {
-        var fn = Marshal.GetDelegateForFunctionPointer<StartFn>(funcPtr);
-        return fn(camPtr, IntPtr.Zero);
-    }
-
-    /// <summary>Stops frame delivery and removes the virtual camera device.</summary>
-    public void Stop()
-    {
-        if (!IsRunning) return;
+        if (!IsComRegistered())
+            throw new InvalidOperationException(
+                "COM class not registered. Run diag\\register-com.ps1 as admin or install the MSI.");
+        EventProvider.LogInfo("COM class verified registered");
 
         try
         {
-            _camera?.Stop();
-            _camera?.Remove();
+            MFFunctions.MFStartup();
+            _mfInitialised = true;
+            EventProvider.LogInfo("MFStartup succeeded");
+
+            string clsid = $"{{{typeof(Activator).GUID.ToString().ToUpperInvariant()}}}";
+            EventProvider.LogInfo($"CLSID={clsid}");
+
+            var hr = Functions.MFCreateVirtualCamera(
+                __MIDL___MIDL_itf_mfvirtualcamera_0000_0000_0001.MFVirtualCameraType_SoftwareCameraSource,
+                __MIDL___MIDL_itf_mfvirtualcamera_0000_0000_0002.MFVirtualCameraLifetime_Session,
+                __MIDL___MIDL_itf_mfvirtualcamera_0000_0000_0003.MFVirtualCameraAccess_CurrentUser,
+                DeviceName,
+                clsid,
+                null,
+                0,
+                out var camera);
+            hr.ThrowOnError();
+
+            _camera = new ComObject<IMFVirtualCamera>(camera);
+            EventProvider.LogInfo("MFCreateVirtualCamera succeeded");
+
+            _camera.Object.Start(null).ThrowOnError();
+            EventProvider.LogInfo("IMFVirtualCamera.Start succeeded");
+
+            // Start stream reader AFTER camera — it probes the stream, saves config,
+            // then waits in background for the COM server to create shared memory.
+            if (!string.IsNullOrWhiteSpace(streamUrl))
+            {
+                _streamReader = new VideoStreamReader(streamUrl);
+                _streamReader.OnLog += msg => OnLog?.Invoke(msg);
+                _streamReader.OnError += msg => OnError?.Invoke(msg);
+                _streamReader.Start();
+                OnLog?.Invoke($"Stream reader started for {streamUrl}");
+            }
+
+            IsRunning = true;
         }
-        finally
+        catch
         {
+            // Rollback partial initialization on failure
+            _streamReader?.Dispose();
+            _streamReader = null;
+
+            _camera?.Dispose();
             _camera = null;
-            IsRunning = false;
 
             if (_mfInitialised)
             {
-                MFShutdown();
+                MFFunctions.MFShutdown();
                 _mfInitialised = false;
             }
+            throw;
         }
     }
 
-    /// <summary>
-    /// Pushes a new BGRA frame into the shared buffer.  MF will pick it up on the next
-    /// <c>RequestSample</c> call.
-    /// </summary>
-    /// <param name="bgraData">Raw pixel bytes in BGRA order, <c>width * height * 4</c> bytes.</param>
-    /// <param name="width">Frame width.</param>
-    /// <param name="height">Frame height.</param>
-    public void SendFrame(byte[] bgraData, int width, int height)
+    public void Stop()
     {
-        ArgumentNullException.ThrowIfNull(bgraData);
-        FrameBuffer.Put(bgraData, width, height);
+        if (!IsRunning) return;
+        try
+        {
+            _camera?.Object.Remove();
+        }
+        finally
+        {
+            _camera?.Dispose();
+            _camera = null;
+
+            _streamReader?.Dispose();
+            _streamReader = null;
+
+            IsRunning = false;
+            if (_mfInitialised)
+            {
+                MFFunctions.MFShutdown();
+                _mfInitialised = false;
+            }
+        }
     }
 
     public void Dispose()
@@ -173,61 +144,4 @@ public sealed class VirtualCameraManager : IDisposable
         Stop();
     }
 
-    // ------------------------------------------------------------------
-    // COM registration
-    // ------------------------------------------------------------------
-
-    /// <summary>
-    /// Copies COM hosting files to a system-accessible directory and writes
-    /// machine-wide COM registration under HKLM so the Camera Frame Server
-    /// service (NT AUTHORITY\LocalService) can activate the media source.
-    /// Requires the application to run elevated (admin).
-    /// </summary>
-    private void RegisterComClass()
-    {
-        string clsid = typeof(VirtualCameraSource).GUID.ToString("B").ToUpperInvariant();
-        string baseDir = AppContext.BaseDirectory;
-
-        // Frame Server (LocalService) can't access user-profile directories.
-        // Copy COM hosting files to ProgramData where all accounts can read.
-        string comDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
-            "vCamService", "com");
-        Directory.CreateDirectory(comDir);
-
-        string[] comFiles = [
-            "vCamService.VCam.comhost.dll",
-            "vCamService.VCam.dll",
-            "vCamService.VCam.runtimeconfig.json",
-            "vCamService.VCam.deps.json",
-            "vCamService.Core.dll",
-        ];
-        foreach (string file in comFiles)
-        {
-            string src = Path.Combine(baseDir, file);
-            if (File.Exists(src))
-                File.Copy(src, Path.Combine(comDir, file), overwrite: true);
-        }
-
-        string comhostPath = Path.Combine(comDir, "vCamService.VCam.comhost.dll");
-
-        // HKLM\Software\Classes\CLSID\{guid}
-        using RegistryKey clsidKey = Registry.LocalMachine.CreateSubKey(
-            $@"Software\Classes\CLSID\{clsid}", writable: true);
-        clsidKey.SetValue(null, "vCamService Camera Source");
-
-        // HKLM\Software\Classes\CLSID\{guid}\InProcServer32
-        using RegistryKey inprocKey = clsidKey.CreateSubKey("InProcServer32");
-        inprocKey.SetValue(null, comhostPath);
-        inprocKey.SetValue("ThreadingModel", "Both");
-    }
-
-    // ------------------------------------------------------------------
-    // Helpers
-    // ------------------------------------------------------------------
-
-    private static void ThrowIfFailed(int hr, string context)
-    {
-        if (hr < 0) throw new COMException($"Media Foundation call failed in {context}", hr);
-    }
 }

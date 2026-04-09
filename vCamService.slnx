@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/vCamService.App/vCamService.App.csproj" />
+    <Project Path="src/vCamService.Core/vCamService.Core.csproj" />
+    <Project Path="src/vCamService.VCam/vCamService.VCam.csproj">
+      <Platform Project="x64" />
+    </Project>
+  </Folder>
+</Solution>

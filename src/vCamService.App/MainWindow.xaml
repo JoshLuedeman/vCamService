@@ -1,0 +1,55 @@
+<Window x:Class="vCamService.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="vCamService Settings" Height="400" Width="520"
+        WindowStartupLocation="CenterScreen"
+        Icon="Resources/camera.ico">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Status -->
+        <TextBlock x:Name="StatusText" Text="Status: Stopped"
+                   FontSize="14" FontWeight="SemiBold" Margin="0,0,0,12"/>
+
+        <!-- Stream URL -->
+        <Grid Grid.Row="1" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="Stream URL:" VerticalAlignment="Center" Margin="0,0,10,0"/>
+            <TextBox Grid.Column="1" x:Name="StreamUrlBox" VerticalAlignment="Center"/>
+        </Grid>
+
+        <!-- Auto-start checkbox -->
+        <CheckBox Grid.Row="2" x:Name="AutoStartCheck" Content="Start automatically when Windows starts"
+                  Margin="0,0,0,12"/>
+
+        <!-- Buttons -->
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,8">
+            <Button x:Name="StartButton" Content="Start Camera" Width="110"
+                    Margin="4" Click="StartButton_Click"/>
+            <Button x:Name="StopButton" Content="Stop Camera" Width="110"
+                    Margin="4" Click="StopButton_Click" IsEnabled="False"/>
+            <Button Content="Save Settings" Width="110"
+                    Margin="4" Click="SaveButton_Click"/>
+        </StackPanel>
+
+        <!-- Log -->
+        <TextBox Grid.Row="4" x:Name="LogBox"
+                 IsReadOnly="True" VerticalScrollBarVisibility="Auto"
+                 TextWrapping="Wrap" FontSize="11" FontFamily="Consolas"
+                 Foreground="Gray" Background="#1E1E1E" Margin="0,4,0,0"/>
+
+        <!-- Error -->
+        <TextBlock Grid.Row="5" x:Name="ErrorText" Foreground="Red"
+                   TextWrapping="Wrap" Margin="0,4,0,0"/>
+    </Grid>
+</Window>

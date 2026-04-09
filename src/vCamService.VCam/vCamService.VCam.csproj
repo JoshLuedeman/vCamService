@@ -1,14 +1,17 @@
 <Project Sdk="Microsoft.NET.Sdk">
+
   <PropertyGroup>
-    <TargetFramework>net8.0-windows</TargetFramework>
-    <RootNamespace>vCamService.VCam</RootNamespace>
-    <AssemblyName>vCamService.VCam</AssemblyName>
-    <!-- comhost.dll generation is only supported by the Windows .NET SDK toolchain -->
-    <EnableComHosting Condition="$([MSBuild]::IsOSPlatform('windows'))">true</EnableComHosting>
-    <!-- comhost.dll requires a runtimeconfig.json next to it to bootstrap the CLR -->
-    <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
+    <EnableComHosting>true</EnableComHosting>
+    <Platforms>x64</Platforms>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DirectNCore" Version="1.18.0" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\vCamService.Core\vCamService.Core.csproj" />
   </ItemGroup>
+
 </Project>
