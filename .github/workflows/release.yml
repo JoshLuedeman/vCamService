@@ -120,12 +120,33 @@ jobs:
           name: release-msi
           path: release-artifacts
 
+      - name: Extract changelog for version
+        id: changelog
+        run: |
+          VERSION="${{ needs.build-release.outputs.version }}"
+          # Extract the section between ## [VERSION] and the next ## [
+          NOTES=$(awk "/^## \\[$VERSION\\]/{found=1; next} /^## \\[/{if(found) exit} found{print}" CHANGELOG.md)
+          if [ -z "$NOTES" ]; then
+            NOTES="No changelog entry found for version $VERSION."
+          fi
+          # Write multiline output
+          {
+            echo "notes<<EOF"
+            echo "$NOTES"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: vCamService v${{ needs.build-release.outputs.version }}
-          generate_release_notes: true
+          body: |
+            ${{ steps.changelog.outputs.notes }}
+
+            ---
+            *Auto-generated from [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md)*
+          generate_release_notes: false
           files: release-artifacts/*.msi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
