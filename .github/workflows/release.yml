@@ -1,0 +1,110 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g. 1.0.0)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    runs-on: windows-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      msi-name: ${{ steps.find-msi.outputs.msi-name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+          dotnet-quality: 'preview'
+
+      - name: Determine version
+        id: version
+        run: |
+          if ('${{ github.event_name }}' -eq 'workflow_dispatch') {
+            $ver = '${{ github.event.inputs.version }}'
+          } else {
+            $ver = '${{ github.ref_name }}' -replace '^v', ''
+          }
+          Write-Host "Version: $ver"
+          "version=$ver" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+        shell: pwsh
+
+      - name: Restore packages
+        run: dotnet restore
+
+      - name: Build solution (Release)
+        run: dotnet build --no-restore -c Release
+
+      - name: Run tests
+        run: dotnet test --no-build -c Release --verbosity normal
+
+      - name: Publish app
+        run: |
+          dotnet publish src/vCamService.App/vCamService.App.csproj `
+            -c Release -r win-x64 --self-contained false -o publish
+        shell: pwsh
+
+      - name: Prepare COM runtime config
+        run: |
+          $appRC = "publish/vCamService.App.runtimeconfig.json"
+          $vcamRC = "publish/vCamService.VCam.runtimeconfig.json"
+          if ((Test-Path $appRC) -and -not (Test-Path $vcamRC)) {
+            Copy-Item $appRC $vcamRC
+          }
+        shell: pwsh
+
+      - name: Build MSI installer
+        run: |
+          dotnet build src/vCamService.Installer/vCamService.Installer.wixproj `
+            -c Release `
+            -p:PublishDir="$((Resolve-Path publish).Path)\" `
+            -p:ProductVersion="${{ steps.version.outputs.version }}"
+        shell: pwsh
+
+      - name: Find MSI
+        id: find-msi
+        run: |
+          $msi = Get-ChildItem "src/vCamService.Installer/bin/Release" -Filter "*.msi" -Recurse | Select-Object -First 1
+          if (-not $msi) { Write-Error "MSI not found"; exit 1 }
+          Write-Host "MSI: $($msi.FullName)"
+          "msi-path=$($msi.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "msi-name=$($msi.Name)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+        shell: pwsh
+
+      - name: Upload MSI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-msi
+          path: ${{ steps.find-msi.outputs.msi-path }}
+
+  create-release:
+    needs: build-release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download MSI
+        uses: actions/download-artifact@v4
+        with:
+          name: release-msi
+          path: release-artifacts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: vCamService v${{ needs.build-release.outputs.version }}
+          generate_release_notes: true
+          files: release-artifacts/*.msi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

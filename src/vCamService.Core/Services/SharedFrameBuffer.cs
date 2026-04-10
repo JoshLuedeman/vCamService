@@ -354,6 +354,98 @@ public sealed class SharedFrameBuffer : IDisposable
         _mmf?.Dispose();
     }
 
+    #region Internal test helpers
+
+    /// <summary>
+    /// Create a SharedFrameBuffer for testing using .NET MemoryMappedFile API.
+    /// Uses Local\ namespace — no admin required. Not suitable for cross-session use.
+    /// </summary>
+    internal static unsafe SharedFrameBuffer CreateForTest(string mmfName, int width, int height, int fpsNum = 30, int fpsDen = 1, int pixelFormat = PixelFormatNV12)
+    {
+        int frameSize = pixelFormat == PixelFormatNV12
+            ? width * height * 3 / 2
+            : width * height * 4;
+        int stride = pixelFormat == PixelFormatNV12 ? width : width * 4;
+        long totalSize = HeaderSize + (frameSize * 2L);
+
+        var buffer = new SharedFrameBuffer
+        {
+            Width = width, Height = height,
+            FpsNumerator = fpsNum, FpsDenominator = fpsDen,
+            PixelFormat = pixelFormat
+        };
+
+        buffer._mmf = MemoryMappedFile.CreateNew(mmfName, totalSize);
+        buffer._view = buffer._mmf.CreateViewAccessor(0, totalSize, MemoryMappedFileAccess.ReadWrite);
+
+        byte* ptr = null;
+        buffer._view.SafeMemoryMappedViewHandle.AcquirePointer(ref ptr);
+        buffer._basePtr = ptr;
+        buffer._ptrAcquired = true;
+
+        *(int*)(ptr + OffsetVersion) = Version;
+        *(int*)(ptr + OffsetWidth) = width;
+        *(int*)(ptr + OffsetHeight) = height;
+        *(int*)(ptr + OffsetStride) = stride;
+        *(int*)(ptr + OffsetActiveSlot) = 0;
+        *(long*)(ptr + OffsetSequence) = 0L;
+        *(long*)(ptr + OffsetFrameCounter) = 0L;
+        *(long*)(ptr + OffsetHeartbeat) = DateTime.UtcNow.Ticks;
+        *(int*)(ptr + OffsetFpsNum) = fpsNum;
+        *(int*)(ptr + OffsetFpsDen) = fpsDen;
+        *(int*)(ptr + OffsetPixelFormat) = pixelFormat;
+        Thread.MemoryBarrier();
+        *(uint*)(ptr + OffsetMagic) = Magic;
+
+        return buffer;
+    }
+
+    /// <summary>
+    /// Open an existing test MMF for reading (consumer role).
+    /// </summary>
+    internal static unsafe SharedFrameBuffer? OpenForTest(string mmfName)
+    {
+        MemoryMappedFile? mmf = null;
+        MemoryMappedViewAccessor? view = null;
+        try
+        {
+            mmf = MemoryMappedFile.OpenExisting(mmfName, MemoryMappedFileRights.ReadWrite);
+            view = mmf.CreateViewAccessor(0, 0, MemoryMappedFileAccess.ReadWrite);
+
+            byte* ptr = null;
+            view.SafeMemoryMappedViewHandle.AcquirePointer(ref ptr);
+
+            if (*(uint*)(ptr + OffsetMagic) != Magic)
+            {
+                view.SafeMemoryMappedViewHandle.ReleasePointer();
+                view.Dispose();
+                mmf.Dispose();
+                return null;
+            }
+
+            var buffer = new SharedFrameBuffer();
+            buffer._mmf = mmf;
+            buffer._view = view;
+            buffer._basePtr = ptr;
+            buffer._ptrAcquired = true;
+            buffer.Width = *(int*)(ptr + OffsetWidth);
+            buffer.Height = *(int*)(ptr + OffsetHeight);
+            buffer.FpsNumerator = Math.Max(*(int*)(ptr + OffsetFpsNum), 1);
+            buffer.FpsDenominator = Math.Max(*(int*)(ptr + OffsetFpsDen), 1);
+            int pixFmt = *(int*)(ptr + OffsetPixelFormat);
+            buffer.PixelFormat = pixFmt == PixelFormatBGRA ? PixelFormatBGRA : PixelFormatNV12;
+            return buffer;
+        }
+        catch
+        {
+            view?.Dispose();
+            mmf?.Dispose();
+            return null;
+        }
+    }
+
+    #endregion
+
     #region Win32 interop for kernel object security
 
     [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]

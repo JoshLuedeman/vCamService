@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+          dotnet-quality: 'preview'
+
+      - name: Restore packages
+        run: dotnet restore
+
+      - name: Build solution
+        run: dotnet build --no-restore -c Release
+
+      - name: Run tests
+        run: dotnet test --no-build -c Release --verbosity normal
+
+      - name: Build installer (MSI verification)
+        run: |
+          # Publish app for installer build
+          dotnet publish src/vCamService.App/vCamService.App.csproj `
+            -c Release -r win-x64 --self-contained false -o publish
+
+          # Copy runtimeconfig for COM host
+          $appRC = "publish/vCamService.App.runtimeconfig.json"
+          $vcamRC = "publish/vCamService.VCam.runtimeconfig.json"
+          if ((Test-Path $appRC) -and -not (Test-Path $vcamRC)) {
+            Copy-Item $appRC $vcamRC
+          }
+
+          # Build the WiX installer
+          dotnet build src/vCamService.Installer/vCamService.Installer.wixproj `
+            -c Release `
+            -p:PublishDir="$((Resolve-Path publish).Path)\" `
+            -p:ProductVersion="0.0.0"
+        shell: pwsh
+
+      - name: Upload MSI artifact
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: installer-msi
+          path: src/vCamService.Installer/bin/Release/**/*.msi
+          if-no-files-found: warn

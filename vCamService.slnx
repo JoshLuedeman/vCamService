@@ -6,4 +6,7 @@
       <Platform Project="x64" />
     </Project>
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/vCamService.Tests/vCamService.Tests.csproj" />
+  </Folder>
 </Solution>

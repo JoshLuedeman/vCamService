@@ -289,34 +289,45 @@ public sealed class VideoStreamReader : IDisposable
         string output = proc.StandardOutput.ReadToEnd().Trim();
         proc.WaitForExit(10_000);
 
-        // Output format: "width,height,num/den"  e.g. "1920,1080,25/1"
+        var (w, h, num, den) = ParseProbeOutput(output);
+        _width = w;
+        _height = h;
+        _fpsNum = num;
+        _fpsDen = den;
+
+        if (w == 1920 && h == 1080 && num == 25 && den == 1 && !output.StartsWith("1920"))
+        {
+            OnLog?.Invoke($"ffprobe could not detect stream (output: '{output}'), using 1920x1080@25fps");
+        }
+    }
+
+    /// <summary>
+    /// Parse ffprobe CSV output ("width,height,num/den") into structured values.
+    /// Returns fallback defaults (1920x1080@25fps) if parsing fails.
+    /// </summary>
+    public static (int Width, int Height, int FpsNum, int FpsDen) ParseProbeOutput(string output)
+    {
+        if (string.IsNullOrWhiteSpace(output))
+            return (1920, 1080, 25, 1);
+
         var parts = output.Split(',');
         if (parts.Length >= 3
             && int.TryParse(parts[0], out int w) && w > 0
             && int.TryParse(parts[1], out int h) && h > 0)
         {
-            _width = w;
-            _height = h;
-
+            int fpsNum = 30, fpsDen = 1;
             var fpsParts = parts[2].Split('/');
             if (fpsParts.Length == 2
                 && int.TryParse(fpsParts[0], out int num) && num > 0
                 && int.TryParse(fpsParts[1], out int den) && den > 0)
             {
-                _fpsNum = num;
-                _fpsDen = den;
+                fpsNum = num;
+                fpsDen = den;
             }
-            else
-            {
-                _fpsNum = 30; _fpsDen = 1;
-            }
+            return (w, h, fpsNum, fpsDen);
         }
-        else
-        {
-            // Fallback defaults
-            OnLog?.Invoke($"ffprobe could not detect stream (output: '{output}'), using 1920x1080@25fps");
-            _width = 1920; _height = 1080; _fpsNum = 25; _fpsDen = 1;
-        }
+
+        return (1920, 1080, 25, 1);
     }
 
     private static string FindTool(string toolName)
