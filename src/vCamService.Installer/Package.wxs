@@ -59,7 +59,7 @@
     <!--  COM COMPONENT — comhost + registration in ProgramData        -->
     <!-- ============================================================ -->
     <ComponentGroup Id="ComComponents" Directory="ComFolder">
-      <Component Id="ComHostComponent" Guid="*">
+      <Component Id="ComHostComponent" Guid="D7A3E5B1-8C42-4F19-B6D0-3A1E7C9F5B82">
         <File Id="ComHostDll" Source="$(var.PublishDir)\vCamService.VCam.comhost.dll" KeyPath="yes" />
         <File Source="$(var.PublishDir)\vCamService.VCam.dll" CompanionFile="ComHostDll" />
         <File Source="$(var.PublishDir)\vCamService.VCam.runtimeconfig.json" CompanionFile="ComHostDll" />
@@ -90,7 +90,7 @@
     <!--  FFMPEG TOOL                                                  -->
     <!-- ============================================================ -->
     <ComponentGroup Id="ToolsComponents" Directory="ToolsFolder">
-      <Component Id="FfmpegComponent" Guid="*">
+      <Component Id="FfmpegComponent" Guid="E8B4F6C2-9D53-4A20-C7E1-4B2F8DA06C93">
         <File Id="FfmpegExe" Source="$(var.FfmpegPath)\ffmpeg.exe" KeyPath="yes" />
         <File Id="FfprobeExe" Source="$(var.FfmpegPath)\ffprobe.exe" />
 
