@@ -3,5 +3,6 @@
     <OutputType>Package</OutputType>
     <InstallerPlatform>x64</InstallerPlatform>
     <AcceptEula>wix7</AcceptEula>
+    <DefineConstants>PublishDir=$(PublishDir);FfmpegPath=$(FfmpegPath);ProductVersion=$(ProductVersion)</DefineConstants>
   </PropertyGroup>
 </Project>

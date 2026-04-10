@@ -48,6 +48,10 @@ jobs:
       - name: Run tests
         run: dotnet test --no-build -c Release --verbosity normal
 
+      - name: Install ffmpeg
+        run: choco install ffmpeg-full -y --no-progress
+        shell: pwsh
+
       - name: Publish app
         run: |
           dotnet publish src/vCamService.App/vCamService.App.csproj `
@@ -65,9 +69,11 @@ jobs:
 
       - name: Build MSI installer
         run: |
+          $ffmpegDir = (Get-Command ffmpeg).Source | Split-Path
           dotnet build src/vCamService.Installer/vCamService.Installer.wixproj `
             -c Release `
             -p:PublishDir="$((Resolve-Path publish).Path)\" `
+            -p:FfmpegPath="$ffmpegDir\" `
             -p:ProductVersion="${{ steps.version.outputs.version }}"
         shell: pwsh
 

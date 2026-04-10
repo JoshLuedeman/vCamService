@@ -32,6 +32,10 @@ jobs:
 
       - name: Build installer (MSI verification)
         run: |
+          # Install ffmpeg for installer bundling
+          choco install ffmpeg-full -y --no-progress
+          $ffmpegDir = (Get-Command ffmpeg).Source | Split-Path
+
           # Publish app for installer build
           dotnet publish src/vCamService.App/vCamService.App.csproj `
             -c Release -r win-x64 --self-contained false -o publish
@@ -47,6 +51,7 @@ jobs:
           dotnet build src/vCamService.Installer/vCamService.Installer.wixproj `
             -c Release `
             -p:PublishDir="$((Resolve-Path publish).Path)\" `
+            -p:FfmpegPath="$ffmpegDir\" `
             -p:ProductVersion="0.0.0"
         shell: pwsh
 
