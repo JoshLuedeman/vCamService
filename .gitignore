@@ -2,3 +2,9 @@ bin/
 obj/
 *.user
 .vs/
+
+# Build outputs and publish artifacts
+publish/
+publish-*/
+artifacts/
+_tmp_*/
