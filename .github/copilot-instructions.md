@@ -63,7 +63,7 @@ For multi-step tasks, automatically invoke the matching workflow skill:
 ## Key Rules
 
 - **Minimal changes.** Change only what is necessary. Do not refactor unrelated code.
-- **Test before submitting.** Run all relevant tests and verify they pass before opening a PR.
+- **Test before every commit.** Run `dotnet test` and verify all tests pass before any `git commit`. Do not commit if tests fail.
 - **Conventional commits.** Format: `type(scope): description` (e.g., `feat(auth): add token refresh`).
 - **One task per PR.** Keep pull requests focused on a single task or change.
 - **Respect agent boundaries.** Each agent's `.agent.md` file defines ✅ Always / ⚠️ Ask first / 🚫 Never rules. Follow them.
