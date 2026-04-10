@@ -147,7 +147,7 @@
       <ComponentGroupRef Id="ShortcutComponents" />
     </Feature>
 
-    <Icon Id="CameraIcon" SourceFile="$(var.PublishDir)\..\..\..\..\..\Resources\camera.ico" />
+    <Icon Id="CameraIcon" SourceFile="$(var.IconPath)" />
 
   </Package>
 </Wix>

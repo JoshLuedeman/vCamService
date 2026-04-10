@@ -40,7 +40,16 @@ jobs:
           dotnet publish src/vCamService.App/vCamService.App.csproj `
             -c Release -r win-x64 --self-contained false -o publish
 
-          # Copy runtimeconfig for COM host
+          # Copy VCam COM hosting artifacts (comhost, deps.json, runtimeconfig)
+          $vcamBin = Get-ChildItem "src/vCamService.VCam/bin" -Recurse -Filter "vCamService.VCam.comhost.dll" | Select-Object -First 1
+          if ($vcamBin) {
+            $vcamDir = $vcamBin.DirectoryName
+            Copy-Item "$vcamDir/vCamService.VCam.comhost.dll" publish/ -Force
+            Copy-Item "$vcamDir/vCamService.VCam.deps.json" publish/ -Force
+            Copy-Item "$vcamDir/vCamService.VCam.runtimeconfig.json" publish/ -Force
+          }
+
+          # Ensure runtimeconfig exists for COM host
           $appRC = "publish/vCamService.App.runtimeconfig.json"
           $vcamRC = "publish/vCamService.VCam.runtimeconfig.json"
           if ((Test-Path $appRC) -and -not (Test-Path $vcamRC)) {

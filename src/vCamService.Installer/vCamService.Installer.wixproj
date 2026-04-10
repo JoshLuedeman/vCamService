@@ -3,6 +3,7 @@
     <OutputType>Package</OutputType>
     <InstallerPlatform>x64</InstallerPlatform>
     <AcceptEula>wix7</AcceptEula>
-    <DefineConstants>PublishDir=$(PublishDir);FfmpegPath=$(FfmpegPath);ProductVersion=$(ProductVersion)</DefineConstants>
+    <IconPath Condition="'$(IconPath)' == ''">$(MSBuildThisFileDirectory)..\vCamService.App\Resources\camera.ico</IconPath>
+    <DefineConstants>PublishDir=$(PublishDir);FfmpegPath=$(FfmpegPath);ProductVersion=$(ProductVersion);IconPath=$(IconPath)</DefineConstants>
   </PropertyGroup>
 </Project>

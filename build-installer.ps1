@@ -48,6 +48,15 @@ dotnet publish src/vCamService.App/vCamService.App.csproj `
 
 if ($LASTEXITCODE -ne 0) { Write-Error "Publish failed"; exit 1 }
 
+# Copy COM host artifacts (comhost.dll, deps.json produced by VCam build)
+$vcamBin = Get-ChildItem "src/vCamService.VCam/bin" -Recurse -Filter "vCamService.VCam.comhost.dll" | Select-Object -First 1
+if ($vcamBin) {
+    $vcamDir = $vcamBin.DirectoryName
+    Copy-Item "$vcamDir/vCamService.VCam.comhost.dll" $publishDir -Force
+    Copy-Item "$vcamDir/vCamService.VCam.deps.json" $publishDir -Force
+    Write-Host "  Copied VCam COM artifacts from $vcamDir"
+}
+
 # Copy COM host runtimeconfig (needed for comhost.dll to find the runtime)
 $appRuntimeConfig = Join-Path $publishDir "vCamService.App.runtimeconfig.json"
 $vcamRuntimeConfig = Join-Path $publishDir "vCamService.VCam.runtimeconfig.json"
