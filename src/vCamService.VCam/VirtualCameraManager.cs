@@ -34,7 +34,7 @@ public sealed class VirtualCameraManager : IDisposable
     public bool IsRunning { get; private set; }
 
     /// <summary>Write frames here via <see cref="SendFrame"/>.</summary>
-    public FrameBuffer FrameBuffer { get; } = new();
+    public IFrameBuffer FrameBuffer { get; } = new FrameBuffer();
 
     // ------------------------------------------------------------------
     // Private state

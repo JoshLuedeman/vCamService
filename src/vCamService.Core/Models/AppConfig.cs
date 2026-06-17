@@ -8,5 +8,5 @@ public record AppConfig
     public int VCamHeight { get; init; } = 720;
     public int VCamFps { get; init; } = 30;
     public bool MinimizeToTray { get; init; } = true;
-    public List<StreamConfig> Streams { get; init; } = new();
+    public IReadOnlyList<StreamConfig> Streams { get; init; } = [];
 }
