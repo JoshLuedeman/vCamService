@@ -35,7 +35,7 @@ public sealed class VirtualCameraSource : IMFMediaSource
     /// Frame data shared between the managed host and the COM source.
     /// VirtualCameraManager writes here; VirtualCameraStream reads here.
     /// </summary>
-    public static FrameBuffer? SharedFrameBuffer { get; set; }
+    public static IFrameBuffer? SharedFrameBuffer { get; set; }
 
     // ------------------------------------------------------------------
     // Instance state

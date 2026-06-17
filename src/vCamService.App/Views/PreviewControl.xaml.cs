@@ -11,13 +11,13 @@ public partial class PreviewControl : UserControl
     public static readonly DependencyProperty SourceProperty =
         DependencyProperty.Register(
             nameof(Source),
-            typeof(FrameBuffer),
+            typeof(IFrameBuffer),
             typeof(PreviewControl),
             new PropertyMetadata(null));
 
-    public FrameBuffer? Source
+    public IFrameBuffer? Source
     {
-        get => (FrameBuffer?)GetValue(SourceProperty);
+        get => (IFrameBuffer?)GetValue(SourceProperty);
         set => SetValue(SourceProperty, value);
     }
 

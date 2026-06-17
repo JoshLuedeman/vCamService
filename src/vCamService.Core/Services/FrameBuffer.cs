@@ -5,7 +5,7 @@ namespace vCamService.Core.Services;
 /// Writers alternate between two pre-allocated buffers to avoid per-frame allocation.
 /// Readers always get the freshest frame. No backpressure — old frames are silently dropped.
 /// </summary>
-public sealed class FrameBuffer
+public sealed class FrameBuffer : IFrameBuffer
 {
     private byte[]? _bufferA;
     private byte[]? _bufferB;

@@ -23,6 +23,7 @@ public sealed class VirtualCameraStream : IMFMediaStream
     private readonly VirtualCameraSource _source;
     private readonly MediaEventQueue _eventQueue;
     private readonly IMFStreamDescriptor _streamDescriptor;
+    private readonly VCamConfig _config;
 
     private readonly object _stateLock = new();
     private bool _isShutdown;
@@ -31,7 +32,8 @@ public sealed class VirtualCameraStream : IMFMediaStream
     {
         _source = source;
         _eventQueue = new MediaEventQueue();
-        _streamDescriptor = BuildStreamDescriptor(VirtualCameraSource.SharedConfig ?? new VCamConfig());
+        _config = VirtualCameraSource.SharedConfig ?? new VCamConfig();
+        _streamDescriptor = BuildStreamDescriptor(_config);
     }
 
     // ------------------------------------------------------------------
@@ -111,7 +113,7 @@ public sealed class VirtualCameraStream : IMFMediaStream
 
         try
         {
-            var cfg = VirtualCameraSource.SharedConfig ?? new VCamConfig();
+            var cfg = _config;
             byte[] bgraData = GetOrCreateFrame(cfg, out int frameWidth, out int frameHeight);
             int frameByteCount = frameWidth * frameHeight * BytesPerPixel;
 

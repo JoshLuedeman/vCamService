@@ -16,7 +16,7 @@ public sealed class StreamReader : IStreamReader
     private bool _disposed;
 
     public StreamStatus Status => _status;
-    public FrameBuffer FrameBuffer { get; } = new();
+    public IFrameBuffer FrameBuffer { get; } = new FrameBuffer();
     public event Action<StreamStatus>? StatusChanged;
 
     public Task StartAsync(StreamConfig config, CancellationToken ct)

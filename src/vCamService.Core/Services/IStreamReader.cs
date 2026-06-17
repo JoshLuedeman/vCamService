@@ -5,7 +5,7 @@ namespace vCamService.Core.Services;
 public interface IStreamReader : IDisposable
 {
     StreamStatus Status { get; }
-    FrameBuffer FrameBuffer { get; }
+    IFrameBuffer FrameBuffer { get; }
     event Action<StreamStatus>? StatusChanged;
     Task StartAsync(StreamConfig config, CancellationToken ct);
     void Stop();

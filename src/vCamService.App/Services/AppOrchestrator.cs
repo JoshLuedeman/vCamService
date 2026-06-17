@@ -10,16 +10,22 @@ public class AppOrchestrator : IDisposable
     private readonly Dictionary<string, IStreamReader> _readers = new();
     private readonly VirtualCameraManager _vcam;
     private readonly IConfigService _config;
+    private readonly IStreamReaderFactory _readerFactory;
     private readonly ILogger<AppOrchestrator> _logger;
     private AppConfig _appConfig;
     private string? _activeStreamId;
     private CancellationTokenSource? _cts;
     private Task? _feederTask;
 
-    public AppOrchestrator(VirtualCameraManager vcam, IConfigService config, ILogger<AppOrchestrator> logger)
+    public AppOrchestrator(
+        VirtualCameraManager vcam,
+        IConfigService config,
+        IStreamReaderFactory readerFactory,
+        ILogger<AppOrchestrator> logger)
     {
         _vcam = vcam;
         _config = config;
+        _readerFactory = readerFactory;
         _logger = logger;
         _appConfig = config.Load();
     }
@@ -91,9 +97,9 @@ public class AppOrchestrator : IDisposable
 
     private async Task StartReaderAsync(StreamConfig config)
     {
-        var reader = new StreamReader();
+        var reader = _readerFactory.Create();
         _readers[config.Id] = reader;
-        await reader.StartAsync(config, CancellationToken.None);
+        await reader.StartAsync(config, _cts?.Token ?? CancellationToken.None);
     }
 
     private async Task FeedVirtualCameraAsync(CancellationToken ct)

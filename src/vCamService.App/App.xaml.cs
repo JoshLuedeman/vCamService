@@ -56,6 +56,7 @@ public partial class App : Application
                 .ConfigureServices(services =>
                 {
                     services.AddSingleton<IConfigService, ConfigService>();
+                    services.AddSingleton<IStreamReaderFactory, StreamReaderFactory>();
                     services.AddSingleton<VirtualCameraManager>();
                     services.AddSingleton<AppOrchestrator>();
                     services.AddSingleton<MainViewModel>();
