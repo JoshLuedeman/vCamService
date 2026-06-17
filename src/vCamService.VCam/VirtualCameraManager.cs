@@ -4,6 +4,7 @@ using Microsoft.Win32;
 using vCamService.Core.Services;
 using vCamService.VCam.Interop;
 using static vCamService.VCam.Interop.MFGuids;
+using static vCamService.VCam.Interop.MFHelpers;
 using static vCamService.VCam.Interop.MFInterop;
 
 namespace vCamService.VCam;
@@ -167,14 +168,5 @@ public sealed class VirtualCameraManager : IDisposable
         using RegistryKey inprocKey = clsidKey.CreateSubKey("InProcServer32");
         inprocKey.SetValue(null, comhostPath);
         inprocKey.SetValue("ThreadingModel", "Both");
-    }
-
-    // ------------------------------------------------------------------
-    // Helpers
-    // ------------------------------------------------------------------
-
-    private static void ThrowIfFailed(int hr, string context)
-    {
-        if (hr < 0) throw new COMException($"Media Foundation call failed in {context}", hr);
     }
 }

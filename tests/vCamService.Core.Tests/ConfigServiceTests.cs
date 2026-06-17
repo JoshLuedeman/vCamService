@@ -113,5 +113,5 @@ public class ConfigServiceTests : IDisposable
 /// <summary>Testable subclass that uses a custom config directory.</summary>
 internal sealed class ConfigServiceTestable : ConfigService
 {
-    public ConfigServiceTestable(string dir) : base(dir) { }
+    public ConfigServiceTestable(string dir) : base(dir, null) { }
 }

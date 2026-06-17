@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using vCamService.Core.Services;
 using vCamService.VCam.Interop;
 using static vCamService.VCam.Interop.MFGuids;
+using static vCamService.VCam.Interop.MFHelpers;
 using static vCamService.VCam.Interop.MFInterop;
 
 namespace vCamService.VCam;
@@ -25,17 +26,29 @@ public sealed class VirtualCameraSource : IMFMediaSource
     // Shared state set by VirtualCameraManager
     // ------------------------------------------------------------------
 
+    private static volatile VCamConfig? _sharedConfig;
+
     /// <summary>
     /// Camera configuration shared between the managed host and the COM source.
     /// VirtualCameraManager writes here before starting the camera.
     /// </summary>
-    public static VCamConfig? SharedConfig { get; set; }
+    public static VCamConfig? SharedConfig
+    {
+        get => _sharedConfig;
+        set => _sharedConfig = value;
+    }
+
+    private static volatile IFrameBuffer? _sharedFrameBuffer;
 
     /// <summary>
     /// Frame data shared between the managed host and the COM source.
     /// VirtualCameraManager writes here; VirtualCameraStream reads here.
     /// </summary>
-    public static IFrameBuffer? SharedFrameBuffer { get; set; }
+    public static IFrameBuffer? SharedFrameBuffer
+    {
+        get => _sharedFrameBuffer;
+        set => _sharedFrameBuffer = value;
+    }
 
     // ------------------------------------------------------------------
     // Instance state
@@ -229,6 +242,4 @@ public sealed class VirtualCameraSource : IMFMediaSource
         ppPD = pd;
         return S_OK;
     }
-
-    private static long PackedUInt64(uint hi, uint lo) => ((long)hi << 32) | lo;
 }

@@ -8,8 +8,3 @@ public interface IStreamReaderFactory
 {
     IStreamReader Create();
 }
-
-public sealed class StreamReaderFactory : IStreamReaderFactory
-{
-    public IStreamReader Create() => new StreamReader();
-}
