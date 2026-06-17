@@ -26,6 +26,12 @@ public sealed class VirtualCameraSource : IMFMediaSource
     // ------------------------------------------------------------------
 
     /// <summary>
+    /// Camera configuration shared between the managed host and the COM source.
+    /// VirtualCameraManager writes here before starting the camera.
+    /// </summary>
+    public static VCamConfig? SharedConfig { get; set; }
+
+    /// <summary>
     /// Frame data shared between the managed host and the COM source.
     /// VirtualCameraManager writes here; VirtualCameraStream reads here.
     /// </summary>
@@ -164,6 +170,7 @@ public sealed class VirtualCameraSource : IMFMediaSource
     private static int BuildPresentationDescriptor(out IMFPresentationDescriptor ppPD)
     {
         ppPD = null!;
+        var cfg = SharedConfig ?? new VCamConfig();
 
         int hr = MFCreateMediaType(out IMFMediaType mediaType);
         if (hr < 0) return hr;
@@ -180,14 +187,14 @@ public sealed class VirtualCameraSource : IMFMediaSource
         hr = mediaType.SetGUID(ref key, ref val);
         if (hr < 0) return hr;
 
-        // Frame size: 1280 × 720 packed as (width << 32 | height)
+        // Frame size from config
         key = MF_MT_FRAME_SIZE;
-        hr = mediaType.SetUINT64(ref key, PackedUInt64(1280, 720));
+        hr = mediaType.SetUINT64(ref key, PackedUInt64((uint)cfg.Width, (uint)cfg.Height));
         if (hr < 0) return hr;
 
-        // Frame rate: 30/1 packed as (numerator << 32 | denominator)
+        // Frame rate from config
         key = MF_MT_FRAME_RATE;
-        hr = mediaType.SetUINT64(ref key, PackedUInt64(30, 1));
+        hr = mediaType.SetUINT64(ref key, PackedUInt64((uint)cfg.Fps, 1));
         if (hr < 0) return hr;
 
         // Pixel aspect ratio: 1:1

@@ -63,7 +63,8 @@ public sealed class VirtualCameraManager : IDisposable
         // 1. Register the COM class so MF can CoCreateInstance it
         RegisterComClass();
 
-        // 2. Point the shared frame buffer at our instance
+        // 2. Point the shared config and frame buffer at our instance
+        VirtualCameraSource.SharedConfig = new VCamConfig(width, height, fps);
         VirtualCameraSource.SharedFrameBuffer = FrameBuffer;
 
         // 3. Initialise Media Foundation
@@ -109,6 +110,8 @@ public sealed class VirtualCameraManager : IDisposable
         {
             _camera = null;
             IsRunning = false;
+            VirtualCameraSource.SharedConfig = null;
+            VirtualCameraSource.SharedFrameBuffer = null;
 
             if (_mfInitialised)
             {

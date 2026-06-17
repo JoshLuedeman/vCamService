@@ -90,7 +90,7 @@ public partial class App : Application
             };
 
             // Wire stream-lifecycle commands to the orchestrator.
-            mainVm.OnStreamAdded = async cfg => await orchestrator.AddStreamAsync(cfg);
+            mainVm.OnStreamAdded = cfg => orchestrator.AddStreamAsync(cfg);
             mainVm.OnStreamRemoved = id => orchestrator.RemoveStream(id);
             mainVm.ActiveStreamChangedCallback = id =>
             {

@@ -18,10 +18,7 @@ namespace vCamService.VCam;
 [ClassInterface(ClassInterfaceType.None)]
 public sealed class VirtualCameraStream : IMFMediaStream
 {
-    private const int DefaultWidth = 1280;
-    private const int DefaultHeight = 720;
     private const int BytesPerPixel = 4; // BGRA
-    private const long FrameDuration100Ns = 333_333; // 1/30 s in 100-ns units
 
     private readonly VirtualCameraSource _source;
     private readonly MediaEventQueue _eventQueue;
@@ -34,7 +31,7 @@ public sealed class VirtualCameraStream : IMFMediaStream
     {
         _source = source;
         _eventQueue = new MediaEventQueue();
-        _streamDescriptor = BuildStreamDescriptor();
+        _streamDescriptor = BuildStreamDescriptor(VirtualCameraSource.SharedConfig ?? new VCamConfig());
     }
 
     // ------------------------------------------------------------------
@@ -114,7 +111,8 @@ public sealed class VirtualCameraStream : IMFMediaStream
 
         try
         {
-            byte[] bgraData = GetOrCreateFrame(out int frameWidth, out int frameHeight);
+            var cfg = VirtualCameraSource.SharedConfig ?? new VCamConfig();
+            byte[] bgraData = GetOrCreateFrame(cfg, out int frameWidth, out int frameHeight);
             int frameByteCount = frameWidth * frameHeight * BytesPerPixel;
 
             int hr = MFCreateSample(out IMFSample sample);
@@ -145,7 +143,7 @@ public sealed class VirtualCameraStream : IMFMediaStream
             // Timestamp in 100-nanosecond units from process start
             long sampleTime = Environment.TickCount64 * 10_000L;
             sample.SetSampleTime(sampleTime);
-            sample.SetSampleDuration(FrameDuration100Ns);
+            sample.SetSampleDuration(cfg.FrameDuration100Ns);
 
             // Deliver the sample via the event queue
             return _eventQueue.QueueEventParamUnk(MEMediaSample, sample);
@@ -174,7 +172,7 @@ public sealed class VirtualCameraStream : IMFMediaStream
     // Helpers
     // ------------------------------------------------------------------
 
-    private static byte[] GetOrCreateFrame(out int width, out int height)
+    private static byte[] GetOrCreateFrame(VCamConfig cfg, out int width, out int height)
     {
         var (data, w, h) = VirtualCameraSource.SharedFrameBuffer?.Get() ?? (null, 0, 0);
 
@@ -185,10 +183,10 @@ public sealed class VirtualCameraStream : IMFMediaStream
             return data;
         }
 
-        // No live frame yet — return a dark-gray slate at the default resolution.
-        width = DefaultWidth;
-        height = DefaultHeight;
-        return CreateSlateFrame(DefaultWidth, DefaultHeight);
+        // No live frame yet — return a dark-gray slate at the configured resolution.
+        width = cfg.Width;
+        height = cfg.Height;
+        return CreateSlateFrame(cfg.Width, cfg.Height);
     }
 
     /// <summary>Creates a solid dark-gray BGRA frame (B=64, G=64, R=64, A=255).</summary>
@@ -208,8 +206,8 @@ public sealed class VirtualCameraStream : IMFMediaStream
         return data;
     }
 
-    /// <summary>Builds a stream descriptor advertising BGRA 1280×720 @ 30 fps.</summary>
-    private static IMFStreamDescriptor BuildStreamDescriptor()
+    /// <summary>Builds a stream descriptor advertising BGRA video at the configured resolution and fps.</summary>
+    private static IMFStreamDescriptor BuildStreamDescriptor(VCamConfig cfg)
     {
         int hr = MFCreateMediaType(out IMFMediaType mediaType);
         ThrowIfFailed(hr, nameof(MFCreateMediaType));
@@ -223,10 +221,10 @@ public sealed class VirtualCameraStream : IMFMediaStream
         mediaType.SetGUID(ref key, ref val);
 
         key = MF_MT_FRAME_SIZE;
-        mediaType.SetUINT64(ref key, PackedUInt64(DefaultWidth, DefaultHeight));
+        mediaType.SetUINT64(ref key, PackedUInt64((uint)cfg.Width, (uint)cfg.Height));
 
         key = MF_MT_FRAME_RATE;
-        mediaType.SetUINT64(ref key, PackedUInt64(30, 1));
+        mediaType.SetUINT64(ref key, PackedUInt64((uint)cfg.Fps, 1));
 
         key = MF_MT_PIXEL_ASPECT_RATIO;
         mediaType.SetUINT64(ref key, PackedUInt64(1, 1));

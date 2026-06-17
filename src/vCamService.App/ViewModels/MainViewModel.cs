@@ -40,7 +40,7 @@ public partial class MainViewModel : ObservableObject
     public Func<AddStreamViewModel, bool>? ShowAddStreamDialog { get; set; }
 
     /// <summary>Wired by App.xaml.cs to persist the new stream in the orchestrator.</summary>
-    public Action<StreamConfig>? OnStreamAdded { get; set; }
+    public Func<StreamConfig, Task>? OnStreamAdded { get; set; }
 
     /// <summary>Wired by App.xaml.cs to stop and remove the stream reader.</summary>
     public Action<string>? OnStreamRemoved { get; set; }
@@ -49,7 +49,7 @@ public partial class MainViewModel : ObservableObject
     public Action<string?>? ActiveStreamChangedCallback { get; set; }
 
     [RelayCommand]
-    private void AddStream()
+    private async Task AddStreamAsync()
     {
         var vm = new AddStreamViewModel();
         bool confirmed = ShowAddStreamDialog?.Invoke(vm) ?? false;
@@ -57,7 +57,8 @@ public partial class MainViewModel : ObservableObject
         {
             var config = vm.ToConfig();
             Streams.Add(StreamItemViewModel.FromConfig(config));
-            OnStreamAdded?.Invoke(config);
+            if (OnStreamAdded != null)
+                await OnStreamAdded.Invoke(config);
         }
     }
 
