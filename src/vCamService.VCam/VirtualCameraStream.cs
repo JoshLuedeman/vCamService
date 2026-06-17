@@ -172,6 +172,11 @@ public sealed class VirtualCameraStream : IMFMediaStream
     // Helpers
     // ------------------------------------------------------------------
 
+    // Cached slate frame — re-created only when resolution changes
+    private static byte[]? _cachedSlate;
+    private static int _cachedSlateWidth;
+    private static int _cachedSlateHeight;
+
     private static byte[] GetOrCreateFrame(VCamConfig cfg, out int width, out int height)
     {
         var (data, w, h) = VirtualCameraSource.SharedFrameBuffer?.Get() ?? (null, 0, 0);
@@ -183,15 +188,17 @@ public sealed class VirtualCameraStream : IMFMediaStream
             return data;
         }
 
-        // No live frame yet — return a dark-gray slate at the configured resolution.
+        // No live frame yet — return a cached dark-gray slate at the configured resolution.
         width = cfg.Width;
         height = cfg.Height;
-        return CreateSlateFrame(cfg.Width, cfg.Height);
+        return GetSlateFrame(cfg.Width, cfg.Height);
     }
 
-    /// <summary>Creates a solid dark-gray BGRA frame (B=64, G=64, R=64, A=255).</summary>
-    private static byte[] CreateSlateFrame(int width, int height)
+    private static byte[] GetSlateFrame(int width, int height)
     {
+        if (_cachedSlate != null && _cachedSlateWidth == width && _cachedSlateHeight == height)
+            return _cachedSlate;
+
         int pixelCount = width * height;
         var data = new byte[pixelCount * BytesPerPixel];
 
@@ -203,6 +210,9 @@ public sealed class VirtualCameraStream : IMFMediaStream
             data[i + 3] = 255; // A
         }
 
+        _cachedSlate = data;
+        _cachedSlateWidth = width;
+        _cachedSlateHeight = height;
         return data;
     }
 

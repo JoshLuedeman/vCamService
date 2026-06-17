@@ -113,9 +113,7 @@ public sealed class StreamReader : IStreamReader
                     SetStatus(StreamStatus.Connected);
                 }
 
-                var frame = new byte[frameSize];
-                Buffer.BlockCopy(buffer, 0, frame, 0, frameSize);
-                FrameBuffer.Put(frame, config.Width, config.Height);
+                FrameBuffer.Put(buffer, config.Width, config.Height);
             }
         }
         finally

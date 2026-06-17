@@ -98,25 +98,27 @@ public class AppOrchestrator : IDisposable
 
     private async Task FeedVirtualCameraAsync(CancellationToken ct)
     {
-        var interval = TimeSpan.FromMilliseconds(1000.0 / _appConfig.VCamFps);
-        while (!ct.IsCancellationRequested)
+        using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(1000.0 / _appConfig.VCamFps));
+        try
         {
-            try
+            while (await timer.WaitForNextTickAsync(ct))
             {
-                if (_activeStreamId != null && _readers.TryGetValue(_activeStreamId, out var reader))
+                try
                 {
-                    var (frame, w, h) = reader.FrameBuffer.Get();
-                    if (frame != null)
-                        _vcam.SendFrame(frame, w, h);
+                    if (_activeStreamId != null && _readers.TryGetValue(_activeStreamId, out var reader))
+                    {
+                        var (frame, w, h) = reader.FrameBuffer.Get();
+                        if (frame != null)
+                            _vcam.SendFrame(frame, w, h);
+                    }
                 }
-                await Task.Delay(interval, ct);
-            }
-            catch (OperationCanceledException) { break; }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error in frame feeder loop");
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error in frame feeder loop");
+                }
             }
         }
+        catch (OperationCanceledException) { }
     }
 
     public void Dispose()
