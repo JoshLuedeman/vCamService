@@ -13,12 +13,12 @@ public partial class App : Application
     private VirtualCameraManager? _manager;
     private AppSettings _settings = new();
     private MainWindow? _settingsWindow;
-    private readonly List<string> _logMessages = new();
+    private readonly Queue<string> _logMessages = new();
     private const int MaxLogLines = 200;
 
     public VirtualCameraManager? Manager => _manager;
     public AppSettings Settings => _settings;
-    public IReadOnlyList<string> LogMessages => _logMessages;
+    public IReadOnlyList<string> LogMessages => _logMessages.ToArray();
 
     public string StatusText { get; private set; } = "Stopped";
     public string TooltipText { get; private set; } = "vCamService — Stopped";
@@ -104,6 +104,7 @@ public partial class App : Application
             TooltipText = $"vCamService — {resolution}";
             UpdateTray();
             AddLog($"Camera started: {resolution}");
+            StatusChanged?.Invoke();
         }
         catch (Exception ex)
         {
@@ -112,8 +113,8 @@ public partial class App : Application
             UpdateTray();
             AddLog($"Start failed: {ex.Message}");
             _trayIcon?.ShowNotification("vCamService", $"Failed to start: {ex.Message}");
+            StatusChanged?.Invoke();
         }
-        StatusChanged?.Invoke();
     }
 
     public void StopStream()
@@ -151,9 +152,9 @@ public partial class App : Application
     private void AddLog(string message)
     {
         string timestamped = $"[{DateTime.Now:HH:mm:ss}] {message}";
-        _logMessages.Add(timestamped);
+        _logMessages.Enqueue(timestamped);
         while (_logMessages.Count > MaxLogLines)
-            _logMessages.RemoveAt(0);
+            _logMessages.Dequeue();
         LogAdded?.Invoke(timestamped);
     }
 

@@ -29,6 +29,8 @@ public partial class MainWindow : Window
         Closing += (_, e) =>
         {
             e.Cancel = true;
+            AppInstance.StatusChanged -= RefreshStatus;
+            AppInstance.LogAdded -= OnLogAdded;
             Hide();
         };
     }

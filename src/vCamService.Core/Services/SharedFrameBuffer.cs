@@ -131,7 +131,7 @@ public sealed class SharedFrameBuffer : IDisposable
         *(int*)(ptr + OffsetActiveSlot) = 0;
         *(long*)(ptr + OffsetSequence) = 0L;
         *(long*)(ptr + OffsetFrameCounter) = 0L;
-        *(long*)(ptr + OffsetHeartbeat) = DateTime.UtcNow.Ticks;
+        *(long*)(ptr + OffsetHeartbeat) = Environment.TickCount64;
         *(int*)(ptr + OffsetFpsNum) = fpsNum;
         *(int*)(ptr + OffsetFpsDen) = fpsDen;
         *(int*)(ptr + OffsetPixelFormat) = pixelFormat;
@@ -270,7 +270,7 @@ public sealed class SharedFrameBuffer : IDisposable
         *(int*)(_basePtr + OffsetActiveSlot) = writeSlot;
         *(long*)(_basePtr + OffsetSequence) = newSeq + 1;
         *(long*)(_basePtr + OffsetFrameCounter) = ++_frameCounter;
-        *(long*)(_basePtr + OffsetHeartbeat) = DateTime.UtcNow.Ticks;
+        *(long*)(_basePtr + OffsetHeartbeat) = Environment.TickCount64;
     }
 
     /// <summary>
@@ -305,7 +305,7 @@ public sealed class SharedFrameBuffer : IDisposable
     {
         if (_basePtr == null) return false;
         long ticks = *(long*)(_basePtr + OffsetHeartbeat);
-        return (DateTime.UtcNow.Ticks - ticks) < TimeSpan.TicksPerSecond * 2;
+        return (Environment.TickCount64 - ticks) < 2000;
     }
 
     /// <summary>
@@ -316,6 +316,18 @@ public sealed class SharedFrameBuffer : IDisposable
     {
         if (_basePtr == null) return null;
         return _basePtr + HeaderSize + ((long)slot * FrameSize);
+    }
+
+    /// <summary>
+    /// Mark the buffer as write-in-progress. Call before writing via GetSlotPointer.
+    /// Sets the sequence number to odd so consumers know a write is in progress.
+    /// </summary>
+    public unsafe void BeginWrite()
+    {
+        if (_basePtr == null) return;
+        long seq = *(long*)(_basePtr + OffsetSequence);
+        *(long*)(_basePtr + OffsetSequence) = seq | 1; // ensure odd
+        Thread.MemoryBarrier();
     }
 
     /// <summary>
@@ -330,7 +342,7 @@ public sealed class SharedFrameBuffer : IDisposable
         long seq = *(long*)(_basePtr + OffsetSequence);
         *(long*)(_basePtr + OffsetSequence) = seq + 2; // keep even (committed)
         *(long*)(_basePtr + OffsetFrameCounter) = ++_frameCounter;
-        *(long*)(_basePtr + OffsetHeartbeat) = DateTime.UtcNow.Ticks;
+        *(long*)(_basePtr + OffsetHeartbeat) = Environment.TickCount64;
     }
 
     /// <summary>Get the inactive slot index for writing.</summary>
@@ -390,7 +402,7 @@ public sealed class SharedFrameBuffer : IDisposable
         *(int*)(ptr + OffsetActiveSlot) = 0;
         *(long*)(ptr + OffsetSequence) = 0L;
         *(long*)(ptr + OffsetFrameCounter) = 0L;
-        *(long*)(ptr + OffsetHeartbeat) = DateTime.UtcNow.Ticks;
+        *(long*)(ptr + OffsetHeartbeat) = Environment.TickCount64;
         *(int*)(ptr + OffsetFpsNum) = fpsNum;
         *(int*)(ptr + OffsetFpsDen) = fpsDen;
         *(int*)(ptr + OffsetPixelFormat) = pixelFormat;
