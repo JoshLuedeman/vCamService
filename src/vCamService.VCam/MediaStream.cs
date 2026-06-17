@@ -78,7 +78,7 @@ public class MediaStream : MFAttributes, IMFMediaStream2, IKsControl
             nv12Type.SetGUID(MFConstants.MF_MT_MAJOR_TYPE, MFConstants.MFMediaType_Video).ThrowOnError();
             nv12Type.SetGUID(MFConstants.MF_MT_SUBTYPE, MFConstants.MFVideoFormat_NV12).ThrowOnError();
             nv12Type.SetSize(MFConstants.MF_MT_FRAME_SIZE, ImageWidth, ImageHeight);
-            nv12Type.SetUINT32(MFConstants.MF_MT_DEFAULT_STRIDE, ImageWidth * 3 / 2).ThrowOnError();
+            nv12Type.SetUINT32(MFConstants.MF_MT_DEFAULT_STRIDE, ImageWidth).ThrowOnError();
             nv12Type.SetUINT32(MFConstants.MF_MT_INTERLACE_MODE, (uint)_MFVideoInterlaceMode.MFVideoInterlace_Progressive).ThrowOnError();
             nv12Type.SetUINT32(MFConstants.MF_MT_ALL_SAMPLES_INDEPENDENT, 1).ThrowOnError();
             nv12Type.SetRatio(MFConstants.MF_MT_FRAME_RATE, FpsNumerator, FpsDenominator);
@@ -310,11 +310,10 @@ public class MediaStream : MFAttributes, IMFMediaStream2, IKsControl
                 (uint)__MIDL___MIDL_itf_mfobjects_0000_0013_0001.MEMediaSample,
                 Guid.Empty, HRESULTS.S_OK, sample).ThrowOnError();
 
-            // Release RCW refs so samples return to allocator pool
-            if (_generator.FrameCount % (NUM_ALLOCATOR_SAMPLES / 2) == 0)
-            {
-                GC.Collect();
-            }
+            // Release the extra RCW reference so the sample returns to the
+            // allocator pool. QueueEventParamUnk AddRef'd the COM object, so
+            // the sample stays alive until Frame Server processes the event.
+            Marshal.ReleaseComObject(sample);
 
             return HRESULTS.S_OK;
         }
