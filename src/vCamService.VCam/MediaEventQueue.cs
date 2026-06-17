@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using vCamService.VCam.Interop;
 using static vCamService.VCam.Interop.MFGuids;
+using static vCamService.VCam.Interop.MFHelpers;
 using static vCamService.VCam.Interop.MFInterop;
 
 namespace vCamService.VCam;
@@ -75,10 +76,5 @@ internal sealed class MediaEventQueue : IDisposable
     private void EnsureNotDisposed()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-    }
-
-    private static void ThrowIfFailed(int hr, string context)
-    {
-        if (hr < 0) throw new COMException($"Media Foundation call failed in {context}", hr);
     }
 }

@@ -11,7 +11,6 @@ public sealed class ReconnectManager
     private readonly double _multiplier;
     private readonly double _jitterFactor;
     private int _attempt;
-    private static readonly Random _rng = new();
 
     public ReconnectManager(
         double baseDelaySeconds = 1.0,
@@ -30,7 +29,7 @@ public sealed class ReconnectManager
     public TimeSpan NextDelay()
     {
         double delay = Math.Min(_baseDelaySeconds * Math.Pow(_multiplier, _attempt), _maxDelaySeconds);
-        double jitter = _rng.NextDouble() * _jitterFactor * delay;
+        double jitter = Random.Shared.NextDouble() * _jitterFactor * delay;
         return TimeSpan.FromSeconds(delay + jitter);
     }
 

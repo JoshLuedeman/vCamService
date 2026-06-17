@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using vCamService.Core.Models;
 
 namespace vCamService.Core.Services;
@@ -13,18 +14,20 @@ public class ConfigService : IConfigService
 
     private readonly string _configPath;
     private readonly string _configDir;
+    private readonly ILogger<ConfigService>? _logger;
 
-    public ConfigService()
+    public ConfigService(ILogger<ConfigService>? logger = null)
         : this(Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "vCamService"))
+            "vCamService"), logger)
     {
     }
 
-    protected ConfigService(string configDir)
+    protected ConfigService(string configDir, ILogger<ConfigService>? logger = null)
     {
         _configDir = configDir;
         _configPath = Path.Combine(_configDir, "config.json");
+        _logger = logger;
     }
 
     public AppConfig Load()
@@ -37,8 +40,9 @@ public class ConfigService : IConfigService
             var json = File.ReadAllText(_configPath);
             return JsonSerializer.Deserialize<AppConfig>(json, JsonOptions) ?? new AppConfig();
         }
-        catch
+        catch (Exception ex)
         {
+            _logger?.LogWarning(ex, "Failed to load config from {Path}, using defaults", _configPath);
             return new AppConfig();
         }
     }

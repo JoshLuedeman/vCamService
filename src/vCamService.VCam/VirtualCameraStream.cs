@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using vCamService.VCam.Interop;
 using static vCamService.VCam.Interop.MFGuids;
+using static vCamService.VCam.Interop.MFHelpers;
 using static vCamService.VCam.Interop.MFInterop;
 
 namespace vCamService.VCam;
@@ -254,10 +255,4 @@ public sealed class VirtualCameraStream : IMFMediaStream
         return sd;
     }
 
-    private static long PackedUInt64(uint hi, uint lo) => ((long)hi << 32) | lo;
-
-    private static void ThrowIfFailed(int hr, string context)
-    {
-        if (hr < 0) throw new COMException($"MF call failed in {context}", hr);
-    }
 }
