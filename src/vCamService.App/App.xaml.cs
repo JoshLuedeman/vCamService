@@ -30,7 +30,7 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
-        _settings = AppSettings.Load();
+        _settings = AppSettings.Load(AddLog);
 
         // Create tray icon
         var iconStream = GetResourceStream(new Uri("pack://application:,,,/Resources/camera.ico"))?.Stream;
@@ -94,10 +94,13 @@ public partial class App : Application
             {
                 try
                 {
-                    var config = vCamService.Core.Services.StreamConfig.Load();
+                    var config = vCamService.Core.Services.StreamConfig.Load(logger: AddLog);
                     resolution = $"{config.Width}×{config.Height} @ {config.FpsNumerator}/{config.FpsDenominator} fps";
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    AddLog($"Failed to load stream config for display: {ex.Message}");
+                }
             }
 
             StatusText = $"Streaming — {resolution}";
@@ -173,8 +176,12 @@ public partial class App : Application
 
     private void ExitApp()
     {
-        try { StopStream(); } catch { }
-        try { _trayIcon?.Dispose(); _trayIcon = null; } catch { }
+        try { StopStream(); }
+        catch (Exception ex) { AddLog($"Error stopping stream during exit: {ex.Message}"); }
+        
+        try { _trayIcon?.Dispose(); _trayIcon = null; }
+        catch (Exception ex) { AddLog($"Error disposing tray icon: {ex.Message}"); }
+        
         Dispatcher.InvokeAsync(() => Shutdown());
     }
 

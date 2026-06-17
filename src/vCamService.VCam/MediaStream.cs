@@ -38,7 +38,8 @@ public class MediaStream : MFAttributes, IMFMediaStream2, IKsControl
 
             // Read stream dimensions from config file (written by app after probing)
             StreamConfig? config = null;
-            try { config = StreamConfig.Load(); } catch { }
+            try { config = StreamConfig.Load(logger: msg => EventProvider.LogInfo(msg)); }
+            catch (Exception ex) { EventProvider.LogError($"Failed to load stream config: {ex.Message}"); }
 
             if (config != null && config.Width > 0 && config.Height > 0)
             {

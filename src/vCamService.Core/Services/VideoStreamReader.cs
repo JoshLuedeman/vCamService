@@ -54,14 +54,13 @@ public sealed class VideoStreamReader : IDisposable
         _frameSize = _width * _height * 3 / 2; // NV12: Y plane + interleaved UV
 
         // Write stream config so the COM server knows what dimensions to use
-        var config = new StreamConfig
+        var config = new StreamConfig(configPath: null, logger: msg => OnLog?.Invoke(msg))
         {
             Width = _width, Height = _height,
             FpsNumerator = _fpsNum, FpsDenominator = _fpsDen,
             PixelFormat = SharedFrameBuffer.PixelFormatNV12
         };
         config.Save();
-        OnLog?.Invoke("Stream config saved for COM server");
 
         _cts = new CancellationTokenSource();
 
@@ -176,14 +175,18 @@ public sealed class VideoStreamReader : IDisposable
             if (_ffmpeg != null && !_ffmpeg.HasExited)
             {
                 // Close stdin to signal ffmpeg to exit gracefully
-                try { _ffmpeg.StandardInput.Close(); } catch { }
+                try { _ffmpeg.StandardInput.Close(); }
+                catch (Exception ex) { OnLog?.Invoke($"Could not close ffmpeg stdin: {ex.Message}"); }
                 if (!_ffmpeg.WaitForExit(2000))
                 {
                     _ffmpeg.Kill(entireProcessTree: true);
                 }
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            OnError?.Invoke($"Error stopping ffmpeg: {ex.Message}");
+        }
 
         _readerThread?.Join(3000);
         _stderrThread?.Join(1000);
@@ -259,7 +262,10 @@ public sealed class VideoStreamReader : IDisposable
                 }
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            OnError?.Invoke($"Failed to drain ffmpeg stderr: {ex.Message}");
+        }
     }
 
     private void ProbeStream(string ffprobePath)

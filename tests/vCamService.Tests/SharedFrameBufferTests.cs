@@ -206,4 +206,51 @@ public class SharedFrameBufferTests : IDisposable
         Assert.Equal(3, readBuffer[0]);
         Assert.Equal(3, readBuffer[frameSize - 1]);
     }
+
+    [Fact]
+    public void BeginWrite_MarksSequenceAsOdd_PreventsTornReads()
+    {
+        const int w = 16, h = 16;
+        _owner = SharedFrameBuffer.CreateForTest(_mmfName, w, h, pixelFormat: SharedFrameBuffer.PixelFormatBGRA);
+        _reader = SharedFrameBuffer.OpenForTest(_mmfName);
+        Assert.NotNull(_reader);
+
+        int frameSize = w * h * 4;
+        byte[] frame = new byte[frameSize];
+        Array.Fill(frame, (byte)0xFF);
+
+        // Begin write without CommitSlot — sequence should be odd
+        int slot = _owner.GetWriteSlot();
+        unsafe
+        {
+            byte* slotPtr = _owner.GetSlotPointer(slot);
+            _owner.BeginWrite(); // Mark sequence as odd
+
+            // Now copy data to the slot (simulating zero-copy write)
+            fixed (byte* src = frame)
+            {
+                Buffer.MemoryCopy(src, slotPtr, frameSize, frameSize);
+            }
+
+            // TryReadFrame should detect torn read (sequence is odd)
+            byte[] readBuffer = new byte[frameSize];
+            fixed (byte* ptr = readBuffer)
+            {
+                bool ok = _reader.TryReadFrame((nint)ptr, frameSize);
+                // Should return false because write is in progress
+                Assert.False(ok);
+            }
+
+            // Now commit the slot
+            _owner.CommitSlot(slot);
+
+            // Read should succeed now
+            fixed (byte* ptr = readBuffer)
+            {
+                bool ok = _reader.TryReadFrame((nint)ptr, frameSize);
+                Assert.True(ok);
+            }
+            Assert.Equal(0xFF, readBuffer[0]);
+        }
+    }
 }
