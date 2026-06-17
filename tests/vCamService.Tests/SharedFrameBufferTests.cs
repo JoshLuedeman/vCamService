@@ -244,15 +244,18 @@ public class SharedFrameBufferTests : IDisposable
             // Now commit the slot
             _owner.CommitSlot(slot);
 
-            // Wait for sequence to stabilize
-            Thread.Sleep(10);
-
-            // Read should succeed now (fresh TryReadFrame call after commit completed)
+            // Read should succeed now (retry like production code to handle sequence changes)
             byte[] readBuffer2 = new byte[frameSize];
+            bool gotFrame = false;
             fixed (byte* ptr = readBuffer2)
             {
-                bool ok = _reader.TryReadFrame((nint)ptr, frameSize);
-                Assert.True(ok);
+                for (int retry = 0; retry < 3 && !gotFrame; retry++)
+                {
+                    gotFrame = _reader.TryReadFrame((nint)ptr, frameSize);
+                    if (!gotFrame && retry < 2)
+                        Thread.SpinWait(100);
+                }
+                Assert.True(gotFrame, "Should read frame after commit with retry");
             }
             Assert.Equal(0xFF, readBuffer2[0]);
         }
