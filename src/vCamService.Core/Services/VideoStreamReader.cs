@@ -21,8 +21,11 @@ public sealed class VideoStreamReader : IDisposable
     private CancellationTokenSource? _cts;
     private bool _disposed;
 
-    public bool IsRunning { get; private set; }
-    public ulong FramesWritten { get; private set; }
+    private volatile bool _isRunning;
+    private long _framesWritten;
+
+    public bool IsRunning => _isRunning;
+    public ulong FramesWritten => (ulong)Interlocked.Read(ref _framesWritten);
     public string? LastError { get; private set; }
     public int DetectedWidth => _width;
     public int DetectedHeight => _height;
@@ -66,7 +69,7 @@ public sealed class VideoStreamReader : IDisposable
         _readerThread = new Thread(WaitAndStream) { IsBackground = true, Name = "vCam-WaitAndStream" };
         _readerThread.Start();
 
-        IsRunning = true;
+        _isRunning = true;
     }
 
     /// <summary>
@@ -108,7 +111,7 @@ public sealed class VideoStreamReader : IDisposable
                 CreateNoWindow = true,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
-                RedirectStandardInput = false,
+                RedirectStandardInput = true,
             },
             EnableRaisingEvents = true,
         };
@@ -163,8 +166,8 @@ public sealed class VideoStreamReader : IDisposable
 
     public void Stop()
     {
-        if (!IsRunning) return;
-        IsRunning = false;
+        if (!_isRunning) return;
+        _isRunning = false;
 
         _cts?.Cancel();
 
@@ -173,7 +176,7 @@ public sealed class VideoStreamReader : IDisposable
             if (_ffmpeg != null && !_ffmpeg.HasExited)
             {
                 // Close stdin to signal ffmpeg to exit gracefully
-                try { _ffmpeg.StandardOutput.Close(); } catch { }
+                try { _ffmpeg.StandardInput.Close(); } catch { }
                 if (!_ffmpeg.WaitForExit(2000))
                 {
                     _ffmpeg.Kill(entireProcessTree: true);
@@ -206,6 +209,7 @@ public sealed class VideoStreamReader : IDisposable
 
                 // Get pointer to the inactive MMF slot — write directly, no intermediate buffer
                 int writeSlot = _sharedBuffer.GetWriteSlot();
+                _sharedBuffer.BeginWrite();
                 byte* slotPtr = _sharedBuffer.GetSlotPointer(writeSlot);
                 if (slotPtr == null) return;
 
@@ -224,7 +228,7 @@ public sealed class VideoStreamReader : IDisposable
 
                 // Commit the slot (flip active, update sequence/counter/heartbeat)
                 _sharedBuffer.CommitSlot(writeSlot);
-                FramesWritten++;
+                Interlocked.Increment(ref _framesWritten);
             }
         }
         catch (OperationCanceledException) { }
@@ -258,21 +262,6 @@ public sealed class VideoStreamReader : IDisposable
         catch { }
     }
 
-    /// <summary>
-    /// Poll for the Global\ shared memory buffer created by the COM server.
-    /// Returns null if cancelled.
-    /// </summary>
-    private SharedFrameBuffer? WaitForSharedBuffer(CancellationToken ct)
-    {
-        while (!ct.IsCancellationRequested)
-        {
-            var buf = SharedFrameBuffer.OpenWriter();
-            if (buf != null) return buf;
-            try { Task.Delay(250, ct).Wait(ct); } catch (OperationCanceledException) { break; }
-        }
-        return null;
-    }
-
     private void ProbeStream(string ffprobePath)
     {
         var psi = new ProcessStartInfo
@@ -282,7 +271,7 @@ public sealed class VideoStreamReader : IDisposable
             UseShellExecute = false,
             CreateNoWindow = true,
             RedirectStandardOutput = true,
-            RedirectStandardError = true,
+            RedirectStandardError = false,
         };
 
         using var proc = Process.Start(psi)!;
