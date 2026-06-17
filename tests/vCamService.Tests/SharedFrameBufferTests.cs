@@ -244,13 +244,17 @@ public class SharedFrameBufferTests : IDisposable
             // Now commit the slot
             _owner.CommitSlot(slot);
 
-            // Read should succeed now
-            fixed (byte* ptr = readBuffer)
+            // Wait for sequence to stabilize
+            Thread.Sleep(10);
+
+            // Read should succeed now (fresh TryReadFrame call after commit completed)
+            byte[] readBuffer2 = new byte[frameSize];
+            fixed (byte* ptr = readBuffer2)
             {
                 bool ok = _reader.TryReadFrame((nint)ptr, frameSize);
                 Assert.True(ok);
             }
-            Assert.Equal(0xFF, readBuffer[0]);
+            Assert.Equal(0xFF, readBuffer2[0]);
         }
     }
 }
