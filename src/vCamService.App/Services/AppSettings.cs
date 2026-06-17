@@ -17,10 +17,17 @@ public sealed class AppSettings
     private const string RunKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
     private const string RunKeyName = "vCamService";
 
+    private readonly Action<string>? _logger;
+
     public string StreamUrl { get; set; } = "";
     public bool AutoStartOnBoot { get; set; }
 
-    public static AppSettings Load()
+    public AppSettings(Action<string>? logger = null)
+    {
+        _logger = logger;
+    }
+
+    public static AppSettings Load(Action<string>? logger = null)
     {
         try
         {
@@ -30,8 +37,11 @@ public sealed class AppSettings
                 return JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
             }
         }
-        catch { }
-        return new AppSettings();
+        catch (Exception ex)
+        {
+            logger?.Invoke($"Failed to load settings: {ex.Message}");
+        }
+        return new AppSettings(logger);
     }
 
     public void Save()
@@ -43,7 +53,10 @@ public sealed class AppSettings
             File.WriteAllText(SettingsPath, JsonSerializer.Serialize(this, options));
             UpdateAutoStartRegistry();
         }
-        catch { }
+        catch (Exception ex)
+        {
+            _logger?.Invoke($"Failed to save settings: {ex.Message}");
+        }
     }
 
     private void UpdateAutoStartRegistry()
@@ -64,6 +77,9 @@ public sealed class AppSettings
                 key.DeleteValue(RunKeyName, throwOnMissingValue: false);
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            _logger?.Invoke($"Failed to update auto-start registry: {ex.Message}");
+        }
     }
 }

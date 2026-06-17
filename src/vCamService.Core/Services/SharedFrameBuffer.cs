@@ -340,7 +340,9 @@ public sealed class SharedFrameBuffer : IDisposable
         Thread.MemoryBarrier();
         *(int*)(_basePtr + OffsetActiveSlot) = slot;
         long seq = *(long*)(_basePtr + OffsetSequence);
-        *(long*)(_basePtr + OffsetSequence) = seq + 2; // keep even (committed)
+        // Ensure sequence is even (committed). If BeginWrite was called, seq is odd, so +1 makes it even.
+        // If this is called without BeginWrite, seq is already even, so we increment by 2.
+        *(long*)(_basePtr + OffsetSequence) = (seq % 2 == 0) ? seq + 2 : seq + 1;
         *(long*)(_basePtr + OffsetFrameCounter) = ++_frameCounter;
         *(long*)(_basePtr + OffsetHeartbeat) = Environment.TickCount64;
     }
