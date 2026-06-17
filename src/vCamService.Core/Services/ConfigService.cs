@@ -42,7 +42,7 @@ public class ConfigService : IConfigService
         }
         catch (Exception ex)
         {
-            _logger?.LogWarning(ex, "Failed to load config from {Path}, using defaults", _configPath);
+            _logger?.LogWarning(ex, "Failed to load config from {ConfigPath}, using defaults", _configPath);
             return new AppConfig();
         }
     }
